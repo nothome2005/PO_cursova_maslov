@@ -1,0 +1,234 @@
+<?xml version='1.0' encoding='utf-8'?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:y="http://www.yworks.com/xml/graphml" xmlns:yed="http://www.yworks.com/xml/yed/3" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://www.yworks.com/xml/schema/graphml/1.1/ygraphml.xsd">
+  <key for="««node»»" id="d4" yfiles.type="««node»»graphics" />
+  <key for="edge" id="d6" yfiles.type="edgegraphics" />
+  <graph edgedefault="directed" id="G">
+    <««node»» id="c_server">
+      <data key="d4">
+        <y:UMLClassNode>
+          <y:Geometry height="190.0" width="340.0" x="450.0" y="40.0" />
+          <y:Fill color="#E3F2FD" transparent="false" />
+          <y:BorderStyle color="#1565C0" type="line" width="1.5" />
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="13" fontStyle="bold" textColor="#000000" visible="true">SearchServer</y:NodeLabel>
+          <y:UML clipContent="true" constraint="" hasDetailsColor="false" omitDetails="false" stereotype="«««controller»»»" use3DEffect="false">
+            <y:AttributeLabel>- port_: int
+- search_engine_: SearchEngine</y:AttributeLabel>
+            <y:MethodLabel>+ SearchServer(port: int, engine: SearchEngine)
++ run(): void
+- handle_http_search(req, res): void
+- handle_http_index(req, res): void
+- handle_ws_search(req, conn): void</y:MethodLabel>
+          </y:UML>
+        </y:UMLClassNode>
+      </data>
+    </««node»»>
+    <««node»» id="c_engine">
+      <data key="d4">
+        <y:UMLClassNode>
+          <y:Geometry height="245.0" width="340.0" x="450.0" y="275.0" />
+          <y:Fill color="#E8EAF6" transparent="false" />
+          <y:BorderStyle color="#283593" type="line" width="1.5" />
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="13" fontStyle="bold" textColor="#000000" visible="true">SearchEngine</y:NodeLabel>
+          <y:UML clipContent="true" constraint="" hasDetailsColor="false" omitDetails="false" stereotype="«««facade»»»" use3DEffect="false">
+            <y:AttributeLabel>- data_directory_: std::string
+- index_: InvertedIndex
+- ollama_client_: OllamaClient
+- last_indexed_docs_: std::atomic&lt;size_t&gt;
+- last_build_time_ms_: std::atomic&lt;uint64_t&gt;
+- last_threads_used_: std::atomic&lt;size_t&gt;</y:AttributeLabel>
+            <y:MethodLabel>+ SearchEngine(dir, host, port, model)
++ build_index(threads: size_t): IndexStats
++ search_keyword(query, limit): SearchResponse
++ search_with_expansion(query, limit): SearchResponse
++ get_stats(): IndexStats
++ is_ollama_healthy(): bool</y:MethodLabel>
+          </y:UML>
+        </y:UMLClassNode>
+      </data>
+    </««node»»>
+    <««node»» id="c_threadpool">
+      <data key="d4">
+        <y:UMLClassNode>
+          <y:Geometry height="225.0" width="340.0" x="450.0" y="565.0" />
+          <y:Fill color="#E8F5E9" transparent="false" />
+          <y:BorderStyle color="#2E7D32" type="line" width="1.5" />
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="13" fontStyle="bold" textColor="#000000" visible="true">ThreadPool</y:NodeLabel>
+          <y:UML clipContent="true" constraint="" hasDetailsColor="false" omitDetails="false" stereotype="«««concurrency»»»" use3DEffect="false">
+            <y:AttributeLabel>- threads_: std::vector&lt;std::thread&gt;
+- tasks_: std::queue&lt;std::function&lt;void()&gt;&gt;
+- queue_mutex_: std::mutex
+- condition_: std::condition_variable
+- stop_: std::atomic&lt;bool&gt;
+- active_tasks_: std::atomic&lt;size_t&gt;</y:AttributeLabel>
+            <y:MethodLabel>+ ThreadPool(threads: size_t)
++ ~ThreadPool()
++ enqueue(f: F, ...args): std::future&lt;ReturnType&gt;
++ wait_all(): void
++ get_thread_count(): size_t</y:MethodLabel>
+          </y:UML>
+        </y:UMLClassNode>
+      </data>
+    </««node»»>
+    <««node»» id="c_ollama">
+      <data key="d4">
+        <y:UMLClassNode>
+          <y:Geometry height="185.0" width="320.0" x="840.0" y="305.0" />
+          <y:Fill color="#FFF8E1" transparent="false" />
+          <y:BorderStyle color="#FF8F00" type="line" width="1.5" />
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="13" fontStyle="bold" textColor="#000000" visible="true">OllamaClient</y:NodeLabel>
+          <y:UML clipContent="true" constraint="" hasDetailsColor="false" omitDetails="false" stereotype="«««service»»»" use3DEffect="false">
+            <y:AttributeLabel>- host_: std::string
+- port_: int
+- model_: std::string</y:AttributeLabel>
+            <y:MethodLabel>+ OllamaClient(host, port, model)
++ is_healthy(): bool
++ expand_query(query: string): QueryExpansionResult
+- http_post(endpoint, json): std::string</y:MethodLabel>
+          </y:UML>
+        </y:UMLClassNode>
+      </data>
+    </««node»»>
+    <««node»» id="c_index">
+      <data key="d4">
+        <y:UMLClassNode>
+          <y:Geometry height="285.0" width="370.0" x="40.0" y="545.0" />
+          <y:Fill color="#F3E5F5" transparent="false" />
+          <y:BorderStyle color="#6A1B9A" type="line" width="1.5" />
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="13" fontStyle="bold" textColor="#000000" visible="true">InvertedIndex</y:NodeLabel>
+          <y:UML clipContent="true" constraint="" hasDetailsColor="false" omitDetails="false" stereotype="«««storage»»»" use3DEffect="false">
+            <y:AttributeLabel>- shards_: std::vector&lt;IndexShard&gt;  // lock-striping
+- docs_mutex_: std::shared_mutex
+- documents_: std::vector&lt;DocumentInfo&gt;
+- total_words_all_docs_: std::atomic&lt;uint64_t&gt;</y:AttributeLabel>
+            <y:MethodLabel>+ InvertedIndex()
++ clear(): void
++ register_document(filename, path, words, text): uint32_t
++ add_document_terms(doc_id, term_counts): void
++ search(query_terms, limit): std::vector&lt;SearchResult&gt;
++ get_document_count(): size_t
++ tokenize(text): std::vector&lt;std::string&gt;
++ generate_snippet(doc_id, query_terms): std::string</y:MethodLabel>
+          </y:UML>
+        </y:UMLClassNode>
+      </data>
+    </««node»»>
+    <««node»» id="s_posting">
+      <data key="d4">
+        <y:UMLClassNode>
+          <y:Geometry height="90.0" width="220.0" x="30.0" y="890.0" />
+          <y:Fill color="#FAFAFA" transparent="false" />
+          <y:BorderStyle color="#424242" type="line" width="1.2" />
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="13" fontStyle="bold" textColor="#000000" visible="true">Posting</y:NodeLabel>
+          <y:UML clipContent="true" constraint="" hasDetailsColor="false" omitDetails="false" stereotype="«««struct»»»" use3DEffect="false">
+            <y:AttributeLabel>+ doc_id: uint32_t
++ term_frequency: uint32_t</y:AttributeLabel>
+            <y:MethodLabel />
+          </y:UML>
+        </y:UMLClassNode>
+      </data>
+    </««node»»>
+    <««node»» id="s_docinfo">
+      <data key="d4">
+        <y:UMLClassNode>
+          <y:Geometry height="115.0" width="235.0" x="275.0" y="890.0" />
+          <y:Fill color="#FAFAFA" transparent="false" />
+          <y:BorderStyle color="#424242" type="line" width="1.2" />
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="13" fontStyle="bold" textColor="#000000" visible="true">DocumentInfo</y:NodeLabel>
+          <y:UML clipContent="true" constraint="" hasDetailsColor="false" omitDetails="false" stereotype="«««struct»»»" use3DEffect="false">
+            <y:AttributeLabel>+ id: uint32_t
++ filename: std::string
++ total_words: uint32_t
++ snippet: std::string</y:AttributeLabel>
+            <y:MethodLabel />
+          </y:UML>
+        </y:UMLClassNode>
+      </data>
+    </««node»»>
+    <««node»» id="s_searchres">
+      <data key="d4">
+        <y:UMLClassNode>
+          <y:Geometry height="100.0" width="235.0" x="535.0" y="890.0" />
+          <y:Fill color="#FAFAFA" transparent="false" />
+          <y:BorderStyle color="#424242" type="line" width="1.2" />
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="13" fontStyle="bold" textColor="#000000" visible="true">SearchResult</y:NodeLabel>
+          <y:UML clipContent="true" constraint="" hasDetailsColor="false" omitDetails="false" stereotype="«««struct»»»" use3DEffect="false">
+            <y:AttributeLabel>+ doc_id: std::string
++ score: double
++ snippet: std::string</y:AttributeLabel>
+            <y:MethodLabel />
+          </y:UML>
+        </y:UMLClassNode>
+      </data>
+    </««node»»>
+    <edge id="e0" source="c_server" target="c_engine">
+      <data key="d6">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0" />
+          <y:LineStyle color="#000000" type="line" width="1.5" />
+          <y:Arrows source="none" target="standard" />
+          <y:EdgeLabel alignment="center" configuration="AutoFlippingLabel" distance="2.0" fontFamily="Dialog" fontSize="10" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" textColor="#000000" visible="true">1..1</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e1" source="c_engine" target="c_ollama">
+      <data key="d6">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0" />
+          <y:LineStyle color="#000000" type="line" width="1.5" />
+          <y:Arrows source="diamond" target="none" />
+          <y:EdgeLabel alignment="center" configuration="AutoFlippingLabel" distance="2.0" fontFamily="Dialog" fontSize="10" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" textColor="#000000" visible="true">1..1</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e2" source="c_engine" target="c_threadpool">
+      <data key="d6">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0" />
+          <y:LineStyle color="#000000" type="dashed" width="1.5" />
+          <y:Arrows source="none" target="plain" />
+          <y:EdgeLabel alignment="center" configuration="AutoFlippingLabel" distance="2.0" fontFamily="Dialog" fontSize="10" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" textColor="#000000" visible="true">«««uses»»»</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e3" source="c_engine" target="c_index">
+      <data key="d6">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0" />
+          <y:LineStyle color="#000000" type="line" width="1.5" />
+          <y:Arrows source="diamond" target="none" />
+          <y:EdgeLabel alignment="center" configuration="AutoFlippingLabel" distance="2.0" fontFamily="Dialog" fontSize="10" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" textColor="#000000" visible="true">1..1</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e4" source="c_index" target="s_posting">
+      <data key="d6">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0" />
+          <y:LineStyle color="#000000" type="line" width="1.2" />
+          <y:Arrows source="diamond" target="none" />
+          <y:EdgeLabel alignment="center" configuration="AutoFlippingLabel" distance="2.0" fontFamily="Dialog" fontSize="10" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" textColor="#000000" visible="true">1..*</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e5" source="c_index" target="s_docinfo">
+      <data key="d6">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0" />
+          <y:LineStyle color="#000000" type="line" width="1.2" />
+          <y:Arrows source="diamond" target="none" />
+          <y:EdgeLabel alignment="center" configuration="AutoFlippingLabel" distance="2.0" fontFamily="Dialog" fontSize="10" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" textColor="#000000" visible="true">1..*</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e6" source="c_index" target="s_searchres">
+      <data key="d6">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0" />
+          <y:LineStyle color="#000000" type="dashed" width="1.2" />
+          <y:Arrows source="none" target="plain" />
+          <y:EdgeLabel alignment="center" configuration="AutoFlippingLabel" distance="2.0" fontFamily="Dialog" fontSize="10" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" textColor="#000000" visible="true">«««produces»»»</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+  </graph>
+</graphml>

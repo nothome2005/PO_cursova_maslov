@@ -1,0 +1,298 @@
+<?xml version='1.0' encoding='utf-8'?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:y="http://www.yworks.com/xml/graphml" xmlns:yed="http://www.yworks.com/xml/yed/3" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://www.yworks.com/xml/schema/graphml/1.1/ygraphml.xsd">
+  <key for="««node»»" id="d4" yfiles.type="««node»»graphics" />
+  <key for="edge" id="d6" yfiles.type="edgegraphics" />
+  <graph edgedefault="directed" id="G">
+    <««node»» id="n_boundary">
+      <data key="d4">
+        <y:ShapeNode>
+          <y:Geometry height="720.0" width="530.0" x="220.0" y="40.0" />
+          <y:Fill color="#FAFAFA" transparent="false" />
+          <y:BorderStyle color="#424242" type="dashed" width="1.5" />
+          <y:NodeLabel alignment="left" autoSizePolicy="content" fontFamily="Dialog" fontSize="13" fontStyle="bold" modelName="internal" modelPosition="tl" textColor="#000000" visible="true">Пошукова система (Search Engine System)</y:NodeLabel>
+          <y:Shape type="rectangle" />
+        </y:ShapeNode>
+      </data>
+    </««node»»>
+    <««node»» id="n_user">
+      <data key="d4">
+        <y:ShapeNode>
+          <y:Geometry height="80.0" width="140.0" x="40.0" y="340.0" />
+          <y:Fill color="#E1F5FE" transparent="false" />
+          <y:BorderStyle color="#0288D1" type="line" width="2.0" />
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="11" fontStyle="bold" modelName="internal" modelPosition="c" textColor="#000000" visible="true">«««actor»»»
+КористувачКористувачКористувач / Client
+(Web UI / CLI)</y:NodeLabel>
+          <y:Shape type="roundrectangle" />
+        </y:ShapeNode>
+      </data>
+    </««node»»>
+    <««node»» id="n_ollama">
+      <data key="d4">
+        <y:ShapeNode>
+          <y:Geometry height="75.0" width="135.0" x="780.0" y="155.0" />
+          <y:Fill color="#FFF8E1" transparent="false" />
+          <y:BorderStyle color="#FFA000" type="line" width="2.0" />
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="11" fontStyle="bold" modelName="internal" modelPosition="c" textColor="#000000" visible="true">«««actor»»»
+Ollama Service
+(:11434 LLM)</y:NodeLabel>
+          <y:Shape type="roundrectangle" />
+        </y:ShapeNode>
+      </data>
+    </««node»»>
+    <««node»» id="uc1">
+      <data key="d4">
+        <y:ShapeNode>
+          <y:Geometry height="52.0" width="235.0" x="245.0" y="85.0" />
+          <y:Fill color="#EDE7F6" transparent="false" />
+          <y:BorderStyle color="#5E35B1" type="line" width="1.5" />
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="10" fontStyle="bold" modelName="internal" modelPosition="c" textColor="#000000" visible="true">UC1: Пошук за ключовими словами
+(POST /api/search, mode: keyword)</y:NodeLabel>
+          <y:Shape type="ellipse" />
+        </y:ShapeNode>
+      </data>
+    </««node»»>
+    <««node»» id="uc2">
+      <data key="d4">
+        <y:ShapeNode>
+          <y:Geometry height="52.0" width="235.0" x="245.0" y="165.0" />
+          <y:Fill color="#EDE7F6" transparent="false" />
+          <y:BorderStyle color="#5E35B1" type="line" width="1.5" />
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="10" fontStyle="bold" modelName="internal" modelPosition="c" textColor="#000000" visible="true">UC2: Пошук з розширенням запиту
+(LLM Query Expansion)</y:NodeLabel>
+          <y:Shape type="ellipse" />
+        </y:ShapeNode>
+      </data>
+    </««node»»>
+    <««node»» id="uc3">
+      <data key="d4">
+        <y:ShapeNode>
+          <y:Geometry height="52.0" width="235.0" x="245.0" y="250.0" />
+          <y:Fill color="#EDE7F6" transparent="false" />
+          <y:BorderStyle color="#5E35B1" type="line" width="1.5" />
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="10" fontStyle="bold" modelName="internal" modelPosition="c" textColor="#000000" visible="true">UC3: Стрімінг етапів пайплайну
+(WebSocket: /ws/search)</y:NodeLabel>
+          <y:Shape type="ellipse" />
+        </y:ShapeNode>
+      </data>
+    </««node»»>
+    <««node»» id="uc4">
+      <data key="d4">
+        <y:ShapeNode>
+          <y:Geometry height="52.0" width="235.0" x="245.0" y="355.0" />
+          <y:Fill color="#EDE7F6" transparent="false" />
+          <y:BorderStyle color="#5E35B1" type="line" width="1.5" />
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="10" fontStyle="bold" modelName="internal" modelPosition="c" textColor="#000000" visible="true">UC4: Побудова індексу (Index Build)
+(POST /api/index, threads=N)</y:NodeLabel>
+          <y:Shape type="ellipse" />
+        </y:ShapeNode>
+      </data>
+    </««node»»>
+    <««node»» id="uc5">
+      <data key="d4">
+        <y:ShapeNode>
+          <y:Geometry height="52.0" width="235.0" x="245.0" y="460.0" />
+          <y:Fill color="#EDE7F6" transparent="false" />
+          <y:BorderStyle color="#5E35B1" type="line" width="1.5" />
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="10" fontStyle="bold" modelName="internal" modelPosition="c" textColor="#000000" visible="true">UC5: Отримання статистики індексу
+(GET /api/stats)</y:NodeLabel>
+          <y:Shape type="ellipse" />
+        </y:ShapeNode>
+      </data>
+    </««node»»>
+    <««node»» id="uc6">
+      <data key="d4">
+        <y:ShapeNode>
+          <y:Geometry height="52.0" width="235.0" x="245.0" y="555.0" />
+          <y:Fill color="#EDE7F6" transparent="false" />
+          <y:BorderStyle color="#5E35B1" type="line" width="1.5" />
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="10" fontStyle="bold" modelName="internal" modelPosition="c" textColor="#000000" visible="true">UC6: Перевірка працездатності
+(Health Check: GET /api/health)</y:NodeLabel>
+          <y:Shape type="ellipse" />
+        </y:ShapeNode>
+      </data>
+    </««node»»>
+    <««node»» id="uc7">
+      <data key="d4">
+        <y:ShapeNode>
+          <y:Geometry height="52.0" width="235.0" x="245.0" y="650.0" />
+          <y:Fill color="#EDE7F6" transparent="false" />
+          <y:BorderStyle color="#5E35B1" type="line" width="1.5" />
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="10" fontStyle="bold" modelName="internal" modelPosition="c" textColor="#000000" visible="true">UC7: Дослідження масштабованості
+(Benchmark: час vs потоки)</y:NodeLabel>
+          <y:Shape type="ellipse" />
+        </y:ShapeNode>
+      </data>
+    </««node»»>
+    <««node»» id="sub_score">
+      <data key="d4">
+        <y:ShapeNode>
+          <y:Geometry height="52.0" width="205.0" x="525.0" y="85.0" />
+          <y:Fill color="#E8F5E9" transparent="false" />
+          <y:BorderStyle color="#2E7D32" type="line" width="1.5" />
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="10" fontStyle="plain" modelName="internal" modelPosition="c" textColor="#000000" visible="true">Розрахунок релевантності
+(BM25 Ranking &amp; Snippets)</y:NodeLabel>
+          <y:Shape type="ellipse" />
+        </y:ShapeNode>
+      </data>
+    </««node»»>
+    <««node»» id="sub_llm">
+      <data key="d4">
+        <y:ShapeNode>
+          <y:Geometry height="52.0" width="205.0" x="525.0" y="165.0" />
+          <y:Fill color="#FFF8E1" transparent="false" />
+          <y:BorderStyle color="#FFA000" type="line" width="1.5" />
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="10" fontStyle="plain" modelName="internal" modelPosition="c" textColor="#000000" visible="true">Генерація синонімів через LLM
+(Ollama POST /api/generate)</y:NodeLabel>
+          <y:Shape type="ellipse" />
+        </y:ShapeNode>
+      </data>
+    </««node»»>
+    <««node»» id="sub_tp">
+      <data key="d4">
+        <y:ShapeNode>
+          <y:Geometry height="52.0" width="205.0" x="525.0" y="355.0" />
+          <y:Fill color="#E8F5E9" transparent="false" />
+          <y:BorderStyle color="#2E7D32" type="line" width="1.5" />
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="10" fontStyle="plain" modelName="internal" modelPosition="c" textColor="#000000" visible="true">Паралельна токенізація
+(ThreadPool Tasks)</y:NodeLabel>
+          <y:Shape type="ellipse" />
+        </y:ShapeNode>
+      </data>
+    </««node»»>
+    <««node»» id="sub_shards">
+      <data key="d4">
+        <y:ShapeNode>
+          <y:Geometry height="52.0" width="205.0" x="525.0" y="445.0" />
+          <y:Fill color="#E8F5E9" transparent="false" />
+          <y:BorderStyle color="#2E7D32" type="line" width="1.5" />
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="10" fontStyle="plain" modelName="internal" modelPosition="c" textColor="#000000" visible="true">Шардоване блокування
+(InvertedIndex Update)</y:NodeLabel>
+          <y:Shape type="ellipse" />
+        </y:ShapeNode>
+      </data>
+    </««node»»>
+    <edge id="e0" source="n_user" target="uc1">
+      <data key="d6">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0" />
+          <y:LineStyle color="#000000" type="line" width="1.2" />
+          <y:Arrows source="none" target="none" />
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e1" source="n_user" target="uc2">
+      <data key="d6">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0" />
+          <y:LineStyle color="#000000" type="line" width="1.2" />
+          <y:Arrows source="none" target="none" />
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e2" source="n_user" target="uc3">
+      <data key="d6">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0" />
+          <y:LineStyle color="#000000" type="line" width="1.2" />
+          <y:Arrows source="none" target="none" />
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e3" source="n_user" target="uc4">
+      <data key="d6">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0" />
+          <y:LineStyle color="#000000" type="line" width="1.2" />
+          <y:Arrows source="none" target="none" />
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e4" source="n_user" target="uc5">
+      <data key="d6">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0" />
+          <y:LineStyle color="#000000" type="line" width="1.2" />
+          <y:Arrows source="none" target="none" />
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e5" source="n_user" target="uc6">
+      <data key="d6">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0" />
+          <y:LineStyle color="#000000" type="line" width="1.2" />
+          <y:Arrows source="none" target="none" />
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e6" source="n_user" target="uc7">
+      <data key="d6">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0" />
+          <y:LineStyle color="#000000" type="line" width="1.2" />
+          <y:Arrows source="none" target="none" />
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e7" source="uc1" target="sub_score">
+      <data key="d6">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0" />
+          <y:LineStyle color="#000000" type="dashed" width="1.2" />
+          <y:Arrows source="none" target="plain" />
+          <y:EdgeLabel alignment="center" configuration="AutoFlippingLabel" distance="2.0" fontFamily="Dialog" fontSize="10" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" textColor="#000000" visible="true">«««include»»»</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e8" source="uc2" target="sub_llm">
+      <data key="d6">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0" />
+          <y:LineStyle color="#000000" type="dashed" width="1.2" />
+          <y:Arrows source="none" target="plain" />
+          <y:EdgeLabel alignment="center" configuration="AutoFlippingLabel" distance="2.0" fontFamily="Dialog" fontSize="10" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" textColor="#000000" visible="true">«««include»»»</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e9" source="uc3" target="uc2">
+      <data key="d6">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0" />
+          <y:LineStyle color="#000000" type="dashed" width="1.2" />
+          <y:Arrows source="none" target="plain" />
+          <y:EdgeLabel alignment="center" configuration="AutoFlippingLabel" distance="2.0" fontFamily="Dialog" fontSize="10" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" textColor="#000000" visible="true">«««include»»»</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e10" source="uc4" target="sub_tp">
+      <data key="d6">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0" />
+          <y:LineStyle color="#000000" type="dashed" width="1.2" />
+          <y:Arrows source="none" target="plain" />
+          <y:EdgeLabel alignment="center" configuration="AutoFlippingLabel" distance="2.0" fontFamily="Dialog" fontSize="10" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" textColor="#000000" visible="true">«««include»»»</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e11" source="sub_tp" target="sub_shards">
+      <data key="d6">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0" />
+          <y:LineStyle color="#000000" type="dashed" width="1.2" />
+          <y:Arrows source="none" target="plain" />
+          <y:EdgeLabel alignment="center" configuration="AutoFlippingLabel" distance="2.0" fontFamily="Dialog" fontSize="10" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" textColor="#000000" visible="true">«««include»»»</y:EdgeLabel>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e12" source="sub_llm" target="n_ollama">
+      <data key="d6">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0" />
+          <y:LineStyle color="#FFA000" type="line" width="1.5" />
+          <y:Arrows source="none" target="none" />
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+  </graph>
+</graphml>
