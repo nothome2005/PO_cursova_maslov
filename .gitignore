@@ -1,0 +1,30 @@
+# Build outputs
+build/
+bin/
+out/
+*.zip
+
+# Node dependencies
+node_modules/
+dist/
+.vite/
+
+# IDE & OS
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Dataset & Model files
+data/documents/*
+!data/documents/.gitkeep
+models/*
+!models/.gitkeep
+!models/ollama/.gitkeep
+
+# Temporary files
+*.log
+benchmark_results.json
+
