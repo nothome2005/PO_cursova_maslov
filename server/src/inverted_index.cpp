@@ -171,10 +171,16 @@ double InvertedIndex::get_avg_doc_length() const {
 std::vector<std::string> InvertedIndex::tokenize(const std::string& text) {
     const auto& stop_words = get_stop_words();
     std::vector<std::string> tokens;
+    tokens.reserve(text.size() / 6); // Попередня алокація для оптимізації реаллокацій вектора
     std::string current_word;
 
-    for (char c : text) {
+    for (size_t i = 0; i < text.size(); ++i) {
+        char c = text[i];
         if (std::isalnum(static_cast<unsigned char>(c))) {
+            current_word += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        } else if ((c == '\'' || c == '-') && !current_word.empty() && 
+                   i + 1 < text.size() && std::isalnum(static_cast<unsigned char>(text[i + 1]))) {
+            // Збереження внутрішніх дефісів та апострофів (наприклад, user-friendly, don't)
             current_word += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         } else if (!current_word.empty()) {
             if (current_word.length() >= 2 && stop_words.find(current_word) == stop_words.end()) {
