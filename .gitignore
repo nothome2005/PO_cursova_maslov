@@ -18,8 +18,11 @@ dist/
 Thumbs.db
 
 # Dataset & Model files
-data/documents/*
+data/documents/D1.7GB/
+data/documents/test_*.txt
+data/documents/*.zip
 !data/documents/.gitkeep
+!data/documents/*.txt
 models/*
 !models/.gitkeep
 !models/ollama/.gitkeep

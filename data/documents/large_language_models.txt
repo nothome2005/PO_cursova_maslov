@@ -1,0 +1,1 @@
+Large language models (LLMs) and artificial intelligence algorithms are capable of expanding search queries with contextual synonyms, understanding semantic relationships between concepts, and generating human-like responses.
