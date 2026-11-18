@@ -27,10 +27,10 @@ ThreadPool::ThreadPool(size_t threads) {
                 // Виконання завдання поза критичною секцією
                 task();
 
-                // Зменшення лічильника активних завдань
-                if (--active_tasks_ == 0) {
+                // Синхронізоване зменшення лічильника та сповіщення при завершенні всіх задач
+                {
                     std::unique_lock<std::mutex> lock(queue_mutex_);
-                    if (tasks_.empty() && active_tasks_.load() == 0) {
+                    if (--active_tasks_ == 0 && tasks_.empty()) {
                         cv_done_.notify_all();
                     }
                 }
@@ -40,7 +40,10 @@ ThreadPool::ThreadPool(size_t threads) {
 }
 
 ThreadPool::~ThreadPool() {
-    stop_.store(true);
+    {
+        std::unique_lock<std::mutex> lock(queue_mutex_);
+        stop_.store(true);
+    }
     cv_tasks_.notify_all();
     for (std::thread& worker : threads_) {
         if (worker.joinable()) {
@@ -66,7 +69,7 @@ void ThreadPool::wait_all() {
     });
 }
 
-size_t ThreadPool::get_queue_size() {
+size_t ThreadPool::get_queue_size() const {
     std::unique_lock<std::mutex> lock(queue_mutex_);
     return tasks_.size();
 }

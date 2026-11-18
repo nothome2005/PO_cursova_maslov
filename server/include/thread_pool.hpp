@@ -33,13 +33,13 @@ public:
     size_t get_thread_count() const { return threads_.size(); }
 
     // Отримання поточної довжини черги
-    size_t get_queue_size();
+    size_t get_queue_size() const;
 
 private:
     std::vector<std::thread> threads_;
     std::queue<std::function<void()>> tasks_;
 
-    std::mutex queue_mutex_;
+    mutable std::mutex queue_mutex_;
     std::condition_variable cv_tasks_;
     std::condition_variable cv_done_;
 
