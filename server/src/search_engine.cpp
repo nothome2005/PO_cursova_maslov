@@ -6,8 +6,12 @@
 
 namespace search {
 
-SearchEngine::SearchEngine(std::string data_directory)
-    : data_directory_(std::move(data_directory)) {}
+SearchEngine::SearchEngine(std::string data_directory, 
+                           std::string ollama_host, 
+                           int ollama_port, 
+                           std::string ollama_model)
+    : data_directory_(std::move(data_directory)),
+      ollama_client_(std::move(ollama_host), ollama_port, std::move(ollama_model)) {}
 
 IndexStats SearchEngine::build_index(size_t threads) {
     if (threads == 0) threads = 1;
@@ -99,12 +103,33 @@ SearchResponse SearchEngine::search_keyword(const std::string& query, size_t lim
     return response;
 }
 
+SearchResponse SearchEngine::search_with_expansion(const std::string& query, size_t limit) const {
+    auto start_time = std::chrono::high_resolution_clock::now();
+
+    QueryExpansionResult expansion = ollama_client_.expand_query(query);
+    std::vector<SearchResult> results = index_.search(expansion.expanded_terms, limit);
+
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+
+    SearchResponse response;
+    response.results = std::move(results);
+    response.time_ms = static_cast<uint64_t>(duration_ms);
+    response.expanded_terms = std::move(expansion.expanded_terms);
+    response.original_query = query;
+    return response;
+}
+
 IndexStats SearchEngine::get_stats() const {
     return IndexStats{
         index_.get_document_count(),
         last_build_time_ms_.load(),
         last_threads_used_.load()
     };
+}
+
+bool SearchEngine::is_ollama_healthy() const {
+    return ollama_client_.is_healthy();
 }
 
 } // namespace search

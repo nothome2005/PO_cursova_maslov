@@ -24,7 +24,7 @@ data/documents/*.zip
 !data/documents/.gitkeep
 !data/documents/*.txt
 models/*
-!models/.gitkeep
+!models/ollama/
 !models/ollama/.gitkeep
 
 # Temporary files

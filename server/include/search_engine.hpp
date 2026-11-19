@@ -2,6 +2,7 @@
 
 #include "inverted_index.hpp"
 #include "thread_pool.hpp"
+#include "ollama_client.hpp"
 #include <string>
 #include <vector>
 #include <chrono>
@@ -25,7 +26,10 @@ struct SearchResponse {
 
 class SearchEngine {
 public:
-    explicit SearchEngine(std::string data_directory = "./data/documents");
+    SearchEngine(std::string data_directory = "./data/documents", 
+                 std::string ollama_host = "ollama", 
+                 int ollama_port = 11434, 
+                 std::string ollama_model = "llama3.2:1b");
     ~SearchEngine() = default;
 
     // Побудова індексу з заданою кількістю потоків
@@ -34,8 +38,17 @@ public:
     // Звичайний пошук за ключовими словами (mode: "keyword")
     SearchResponse search_keyword(const std::string& query, size_t limit = 20) const;
 
+    // Розширений пошук через LLM (Ollama Query Expansion)
+    SearchResponse search_with_expansion(const std::string& query, size_t limit = 20) const;
+
     // Отримання поточної статистики
     IndexStats get_stats() const;
+
+    // Перевірка стану сервера та Ollama
+    bool is_ollama_healthy() const;
+
+    // Доступ до клієнта Ollama
+    const OllamaClient& get_ollama_client() const { return ollama_client_; }
 
     void set_data_directory(std::string data_directory) {
         data_directory_ = std::move(data_directory);
@@ -44,6 +57,7 @@ public:
 private:
     std::string data_directory_;
     InvertedIndex index_;
+    OllamaClient ollama_client_;
 
     std::atomic<size_t> last_indexed_docs_{0};
     std::atomic<uint64_t> last_build_time_ms_{0};
