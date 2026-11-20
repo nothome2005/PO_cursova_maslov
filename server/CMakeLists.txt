@@ -17,3 +17,7 @@ target_link_libraries(search_server PRIVATE
     httplib::httplib
     Threads::Threads
 )
+
+if(WIN32)
+    target_link_libraries(search_server PRIVATE ws2_32 wsock32)
+endif()
