@@ -47,3 +47,4 @@ find_package(Threads REQUIRED)
 
 # Додавання піддиректорій
 add_subdirectory(server)
+add_subdirectory(cli)
