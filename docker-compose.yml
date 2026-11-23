@@ -1,0 +1,57 @@
+services:
+  # C++ Search Engine Backend + Web UI
+  search-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: search_engine_server
+    restart: unless-stopped
+    ports:
+      - "8088:8088"
+    environment:
+      - DATA_DIR=/app/data/documents
+      - OLLAMA_HOST=ollama
+      - OLLAMA_PORT=11434
+      - OLLAMA_MODEL=llama3.2:1b
+      - PORT=8088
+
+    volumes:
+      - ./data/documents:/app/data/documents
+    depends_on:
+      ollama:
+        condition: service_started
+
+  # Ollama Local LLM Engine
+  ollama:
+    image: ollama/ollama:latest
+    container_name: search_engine_ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ./models/ollama:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # Ініціалізатор для автоматичного завантаження LLM моделі
+  ollama-init:
+    image: curlimages/curl:latest
+    container_name: search_engine_ollama_init
+    depends_on:
+      - ollama
+    entrypoint: >
+      sh -c "
+        echo 'Waiting for Ollama service to start...';
+        while ! curl -s http://ollama:11434/api/tags > /dev/null; do
+          sleep 2;
+        done;
+        echo 'Ollama is online! Pulling llama3.2:1b model...';
+        curl -X POST http://ollama:11434/api/pull -d '{\"name\": \"llama3.2:1b\"}';
+        echo 'Model llama3.2:1b downloaded and ready!';
+      "
+
