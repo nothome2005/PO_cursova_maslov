@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parallel Search Engine | КПІ НН ІПСА</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --border: #334155;
+      --primary: #38bdf8;
+      --primary-hover: #0ea5e9;
+      --accent: #818cf8;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --success: #34d399;
+      --warning: #fbbf24;
+      --danger: #f87171;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background-color: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+    .header-title h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .header-title p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .status-badges {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      font-size: 0.85rem;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.65rem;
+      border-radius: 9999px;
+      background: #0f172a;
+      border: 1px solid var(--border);
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+    }
+    .dot.online { background: var(--success); box-shadow: 0 0 8px var(--success); }
+    .dot.offline { background: var(--danger); }
+
+    main {
+      flex: 1;
+      max-width: 1000px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* Indexing Control Card */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+    }
+    .index-bar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      font-size: 0.9rem;
+    }
+    .index-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    select, input[type="text"], button {
+      font-family: inherit;
+      font-size: 0.9rem;
+      border-radius: 8px;
+      outline: none;
+    }
+    select {
+      background: #0f172a;
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 0.4rem 0.8rem;
+    }
+    button {
+      background: var(--primary);
+      color: #0f172a;
+      font-weight: 600;
+      border: none;
+      padding: 0.45rem 1.1rem;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+    button:hover { background: var(--primary-hover); }
+    button:active { transform: scale(0.98); }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    /* Search Box */
+    .search-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .search-bar {
+      display: flex;
+      gap: 0.75rem;
+    }
+    .search-input {
+      flex: 1;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.75rem 1.25rem;
+      font-size: 1.05rem;
+      border-radius: 10px;
+      transition: border-color 0.2s;
+    }
+    .search-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+    }
+    .search-btn {
+      padding: 0 1.75rem;
+      font-size: 1rem;
+      border-radius: 10px;
+    }
+    .presets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .preset-chip {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: border-color 0.2s;
+    }
+    .preset-chip:hover { border-color: var(--primary); color: var(--primary); }
+
+    /* Pipeline Stages Streaming Visualizer */
+    .pipeline {
+      display: none;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .pipeline.active { display: flex; }
+    .pipeline-header {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+    .stages-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.75rem;
+    }
+    .stage-item {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem;
+      font-size: 0.85rem;
+      transition: border-color 0.3s;
+    }
+    .stage-item.in-progress {
+      border-color: var(--warning);
+      box-shadow: 0 0 8px rgba(251, 191, 36, 0.2);
+    }
+    .stage-item.completed {
+      border-color: var(--success);
+    }
+    .stage-title {
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .terms-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-top: 0.35rem;
+    }
+    .term-chip {
+      background: rgba(129, 140, 248, 0.2);
+      border: 1px solid var(--accent);
+      color: #c7d2fe;
+      padding: 0.1rem 0.45rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+    }
+
+    /* Results */
+    .results-section {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .results-meta {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .result-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      transition: border-color 0.2s, transform 0.1s;
+    }
+    .result-card:hover {
+      border-color: var(--primary);
+    }
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    .result-doc-id {
+      font-weight: 700;
+      color: var(--primary);
+      font-size: 1.05rem;
+    }
+    .result-score {
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid var(--primary);
+      color: var(--primary);
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+    }
+    .result-snippet {
+      font-size: 0.9rem;
+      color: #cbd5e1;
+      line-height: 1.6;
+    }
+    .result-snippet mark {
+      background: rgba(251, 191, 36, 0.25);
+      color: var(--warning);
+      padding: 0 0.2rem;
+      border-radius: 3px;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+    footer {
+      border-top: 1px solid var(--border);
+      text-align: center;
+      padding: 1rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="header-title">
+      <h1>⚡ Parallel Search Engine</h1>
+      <p>Курсова робота з дисципліни «Паралельні обчислення» | НН ІПСА, КПІ ім. Ігоря Сікорського</p>
+    </div>
+    <div class="status-badges">
+      <div class="badge">
+        <span id="server-dot" class="dot offline"></span>
+        <span id="server-text">C++ Server: Check...</span>
+      </div>
+      <div class="badge">
+        <span id="ollama-dot" class="dot offline"></span>
+        <span id="ollama-text">Ollama LLM: Check...</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Indexing Control Bar -->
+    <div class="card index-bar">
+      <div>
+        <strong>Статус індексу:</strong> 
+        <span id="stats-docs">0</span> документів проіндексовано 
+        (<span id="stats-time">0</span> мс, <span id="stats-threads">4</span> потоків)
+      </div>
+      <div class="index-controls">
+        <label for="thread-select">Потоків пулу:</label>
+        <select id="thread-select">
+          <option value="1">1 потік</option>
+          <option value="2">2 потоки</option>
+          <option value="4" selected>4 потоки</option>
+          <option value="8">8 потоків</option>
+          <option value="16">16 потоків</option>
+        </select>
+        <button id="rebuild-btn" onclick="rebuildIndex()">Перебудувати індекс</button>
+      </div>
+    </div>
+
+    <!-- Search Section -->
+    <section class="search-section">
+      <div class="search-bar">
+        <input 
+          type="text" 
+          id="search-input" 
+          class="search-input" 
+          placeholder="Введіть пошуковий запит англійською (наприклад: parallel computing)..."
+          onkeydown="if(event.key === 'Enter') startSearch()"
+        />
+        <button class="search-btn" onclick="startSearch()">Шукати</button>
+      </div>
+
+      <div class="presets">
+        <span>Швидкі запити:</span>
+        <span class="preset-chip" onclick="setQuery('parallel computing algorithms')">parallel computing algorithms</span>
+        <span class="preset-chip" onclick="setQuery('space telescope astronomy')">space telescope astronomy</span>
+        <span class="preset-chip" onclick="setQuery('artificial intelligence neural network')">artificial intelligence</span>
+        <span class="preset-chip" onclick="setQuery('database performance optimization')">database performance</span>
+      </div>
+    </section>
+
+    <!-- Pipeline Visualizer (WebSocket Streaming) -->
+    <section id="pipeline" class="pipeline">
+      <div class="pipeline-header">WebSocket Пайплайн Пошуку (/ws/search)</div>
+      <div class="stages-grid">
+        <div id="stage-expansion" class="stage-item">
+          <div class="stage-title">
+            <span>1. LLM Query Expansion</span>
+            <span id="expansion-status" style="font-size: 0.8rem; color: var(--text-muted);">Очікування...</span>
+          </div>
+          <div id="expansion-terms" class="terms-chips"></div>
+        </div>
+
+        <div id="stage-search" class="stage-item">
+          <div class="stage-title">
+            <span>2. Inverted Index Search</span>
+            <span id="search-status" style="font-size: 0.8rem; color: var(--text-muted);">Очікування...</span>
+          </div>
+          <div id="search-details" style="font-size: 0.8rem; color: var(--text-muted);">Пошук за шардами...</div>
+        </div>
+
+        <div id="stage-done" class="stage-item">
+          <div class="stage-title">
+            <span>3. Результати</span>
+            <span id="done-status" style="font-size: 0.8rem; color: var(--text-muted);">Очікування...</span>
+          </div>
+          <div id="done-details" style="font-size: 0.8rem; color: var(--text-muted);">-</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Results Section -->
+    <section class="results-section">
+      <div class="results-meta">
+        <span id="results-count">Результати пошуку</span>
+        <span id="results-time"></span>
+      </div>
+      <div id="results-container">
+        <div class="empty-state">
+          Введіть запит вище або оберіть один із готових прикладів для тестування.
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    C++20 Parallel Search Engine • Розроблено для захисту курсової роботи • НН ІПСА, КПІ
+  </footer>
+
+  <script>
+    const serverUrl = window.location.origin;
+
+    // 1. Оновлення статусу сервера та статистики
+    async function updateHealth() {
+      try {
+        const res = await fetch(`${serverUrl}/api/health`);
+        const data = await res.json();
+        
+        const serverDot = document.getElementById('server-dot');
+        const serverText = document.getElementById('server-text');
+        const ollamaDot = document.getElementById('ollama-dot');
+        const ollamaText = document.getElementById('ollama-text');
+
+        if (data.status === 'ok') {
+          serverDot.className = 'dot online';
+          serverText.textContent = 'C++ Server: Online';
+        } else {
+          serverDot.className = 'dot offline';
+          serverText.textContent = 'C++ Server: Error';
+        }
+
+        if (data.ollama) {
+          ollamaDot.className = 'dot online';
+          ollamaText.textContent = 'Ollama LLM: Ready';
+        } else {
+          ollamaDot.className = 'dot offline';
+          ollamaText.textContent = 'Ollama LLM: Offline';
+        }
+      } catch (err) {
+        document.getElementById('server-dot').className = 'dot offline';
+        document.getElementById('server-text').textContent = 'C++ Server: Offline';
+      }
+    }
+
+    async function updateStats() {
+      try {
+        const res = await fetch(`${serverUrl}/api/stats`);
+        const data = await res.json();
+        document.getElementById('stats-docs').textContent = data.documents || 0;
+        document.getElementById('stats-time').textContent = data.index_build_time_ms || 0;
+        document.getElementById('stats-threads').textContent = data.threads_used || 4;
+      } catch (err) {
+        console.error('Failed to fetch stats:', err);
+      }
+    }
+
+    // 2. Перебудова індексу
+    async function rebuildIndex() {
+      const btn = document.getElementById('rebuild-btn');
+      const threads = parseInt(document.getElementById('thread-select').value, 10);
+      btn.disabled = true;
+      btn.textContent = `Індексація (${threads} потоків)...`;
+
+      try {
+        const res = await fetch(`${serverUrl}/api/index`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ threads })
+        });
+        const data = await res.json();
+        alert(`Індексацію успішно завершено!\nДокументів: ${data.documents_indexed}\nЧас: ${data.time_ms} мс (${threads} потоків)`);
+        await updateStats();
+      } catch (err) {
+        alert('Помилка під час індексації: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Перебудувати індекс';
+      }
+    }
+
+    // 3. Пошук через WebSocket стрімінг (/ws/search)
+    let ws = null;
+
+    function setQuery(text) {
+      document.getElementById('search-input').value = text;
+      startSearch();
+    }
+
+    function startSearch() {
+      const query = document.getElementById('search-input').value.trim();
+      if (!query) return;
+
+      const pipeline = document.getElementById('pipeline');
+      pipeline.classList.add('active');
+
+      // Скидання UI пайплайну
+      const stageExp = document.getElementById('stage-expansion');
+      const stageSrc = document.getElementById('stage-search');
+      const stageDone = document.getElementById('stage-done');
+
+      stageExp.className = 'stage-item in-progress';
+      stageSrc.className = 'stage-item';
+      stageDone.className = 'stage-item';
+
+      document.getElementById('expansion-status').textContent = 'Генерація LLM...';
+      document.getElementById('expansion-terms').innerHTML = '';
+      document.getElementById('search-status').textContent = 'В черзі...';
+      document.getElementById('search-details').textContent = 'Очікування розширення...';
+      document.getElementById('done-status').textContent = 'Очікування...';
+      document.getElementById('done-details').textContent = '-';
+
+      document.getElementById('results-count').textContent = 'Пошук триває...';
+      document.getElementById('results-time').textContent = '';
+      document.getElementById('results-container').innerHTML = '<div class="empty-state">Стрімінг запиту через WebSocket...</div>';
+
+      // Закриття попереднього сокету якщо був
+      if (ws) {
+        ws.close();
+      }
+
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws/search`;
+
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ query: query }));
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          handlePipelineMessage(msg);
+        } catch (err) {
+          console.error('WS Parse Error:', err);
+        }
+      };
+
+      ws.onerror = (err) => {
+        console.error('WebSocket Error:', err);
+        fallbackHttpSearch(query);
+      };
+    }
+
+    function handlePipelineMessage(msg) {
+      if (msg.stage === 'query_expansion') {
+        const stageExp = document.getElementById('stage-expansion');
+        const stageSrc = document.getElementById('stage-search');
+
+        stageExp.className = 'stage-item completed';
+        document.getElementById('expansion-status').textContent = 'Готово';
+
+        const termsContainer = document.getElementById('expansion-terms');
+        termsContainer.innerHTML = '';
+        if (msg.data && msg.data.expanded_terms) {
+          msg.data.expanded_terms.forEach(term => {
+            const span = document.createElement('span');
+            span.className = 'term-chip';
+            span.textContent = term;
+            termsContainer.appendChild(span);
+          });
+        }
+
+        stageSrc.className = 'stage-item in-progress';
+        document.getElementById('search-status').textContent = 'Пошук в індексі...';
+      }
+      else if (msg.stage === 'keyword_search') {
+        const stageSrc = document.getElementById('stage-search');
+        stageSrc.className = 'stage-item completed';
+        document.getElementById('search-status').textContent = 'Готово';
+        
+        const count = msg.data.results ? msg.data.results.length : 0;
+        document.getElementById('search-details').textContent = `Знайдено: ${count} док. (${msg.data.time_ms} мс)`;
+
+        renderResults(msg.data.results, msg.data.time_ms);
+      }
+      else if (msg.stage === 'done') {
+        const stageDone = document.getElementById('stage-done');
+        stageDone.className = 'stage-item completed';
+        document.getElementById('done-status').textContent = 'Завершено';
+        document.getElementById('done-details').textContent = 'Пайплайн виконано успішно';
+      }
+    }
+
+    // Резервний HTTP пошук якщо WebSocket недоступний
+    async function fallbackHttpSearch(query) {
+      try {
+        const res = await fetch(`${serverUrl}/api/search`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: query, mode: 'keyword' })
+        });
+        const data = await res.json();
+        renderResults(data.results, data.time_ms);
+      } catch (e) {
+        document.getElementById('results-container').innerHTML = 
+          `<div class="empty-state" style="color: var(--danger)">Помилка пошуку: ${e.message}</div>`;
+      }
+    }
+
+    function renderResults(results, timeMs) {
+      const container = document.getElementById('results-container');
+      const countEl = document.getElementById('results-count');
+      const timeEl = document.getElementById('results-time');
+
+      timeEl.textContent = timeMs ? `Час виконання: ${timeMs} мс` : '';
+
+      if (!results || results.length === 0) {
+        countEl.textContent = 'Нічого не знайдено';
+        container.innerHTML = '<div class="empty-state">За вашим запитом документів не знайдено. Спробуйте інші терміни.</div>';
+        return;
+      }
+
+      countEl.textContent = `Знайдено документів: ${results.length}`;
+      container.innerHTML = '';
+
+      results.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'result-card';
+
+        const scorePercent = Math.round(item.score * 100);
+
+        card.innerHTML = `
+          <div class="result-header">
+            <span class="result-doc-id">📄 ${escapeHtml(item.doc_id)}</span>
+            <span class="result-score">Релевантність: ${item.score.toFixed(2)} (${scorePercent}%)</span>
+          </div>
+          <div class="result-snippet">${formatSnippet(item.snippet)}</div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function formatSnippet(snippet) {
+      if (!snippet) return 'Немає фрагменту тексту.';
+      return escapeHtml(snippet);
+    }
+
+    // Початкова ініціалізація
+    updateHealth();
+    updateStats();
+    setInterval(updateHealth, 5000);
+  </script>
+</body>
+</html>

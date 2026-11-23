@@ -231,35 +231,58 @@ int main(int argc, char** argv) {
         conn.send_text(step3.dump());
     });
 
-    // 6. Роздача статичних файлів Web UI (Vite SPA)
+    // 6. Роздача статичних файлів Web UI
+    // Автоматичне визначення шляху до папки public для запуску як з кореня проекту, так і з білд-директорії (build/bin)
+    std::filesystem::path public_dir = "public";
+    if (!std::filesystem::exists(public_dir)) {
+        if (std::filesystem::exists("../public")) {
+            public_dir = "../public";
+        } else if (std::filesystem::exists("../../public")) {
+            public_dir = "../../public";
+        }
+    }
+    std::cout << "[Server] Web UI static root: " << std::filesystem::absolute(public_dir) << std::endl;
+
     CROW_ROUTE(app, "/")
-    ([]() {
+    ([public_dir]() {
         crow::response res;
-        res.set_static_file_info("public/index.html");
+        auto index_path = public_dir / "index.html";
+        if (std::filesystem::exists(index_path)) {
+            res.set_static_file_info(index_path.string());
+        } else {
+            res.code = 404;
+            res.write("Web UI index.html not found");
+        }
         return res;
     });
 
     CROW_ROUTE(app, "/assets/<path>")
-    ([](const std::string& path) {
+    ([public_dir](const std::string& path) {
         crow::response res;
-        std::string full_path = "public/assets/" + path;
+        auto full_path = public_dir / "assets" / path;
         if (std::filesystem::exists(full_path) && std::filesystem::is_regular_file(full_path)) {
-            res.set_static_file_info(full_path);
+            res.set_static_file_info(full_path.string());
         } else {
             res.code = 404;
-            res.write("File not found");
+            res.write("Asset not found");
         }
         return res;
     });
 
     CROW_ROUTE(app, "/<path>")
-    ([](const std::string& path) {
+    ([public_dir](const std::string& path) {
         crow::response res;
-        std::string full_path = "public/" + path;
+        auto full_path = public_dir / path;
         if (std::filesystem::exists(full_path) && std::filesystem::is_regular_file(full_path)) {
-            res.set_static_file_info(full_path);
+            res.set_static_file_info(full_path.string());
         } else {
-            res.set_static_file_info("public/index.html");
+            auto index_path = public_dir / "index.html";
+            if (std::filesystem::exists(index_path)) {
+                res.set_static_file_info(index_path.string());
+            } else {
+                res.code = 404;
+                res.write("Not found");
+            }
         }
         return res;
     });
