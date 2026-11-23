@@ -90,6 +90,34 @@ QueryExpansionResult OllamaClient::expand_query(const std::string& query) const 
             json res_json = json::parse(response_str);
             if (res_json.contains("response")) {
                 std::string response_content = res_json["response"].get<std::string>();
+
+                // Очищення відповіді від markdown-блоків (```json ... ```) та зайвого тексту від LLM
+                size_t first_brace = response_content.find('{');
+                size_t first_bracket = response_content.find('[');
+                size_t start_pos = std::string::npos;
+                if (first_brace != std::string::npos && first_bracket != std::string::npos) {
+                    start_pos = std::min(first_brace, first_bracket);
+                } else if (first_brace != std::string::npos) {
+                    start_pos = first_brace;
+                } else {
+                    start_pos = first_bracket;
+                }
+
+                size_t last_brace = response_content.rfind('}');
+                size_t last_bracket = response_content.rfind(']');
+                size_t end_pos = std::string::npos;
+                if (last_brace != std::string::npos && last_bracket != std::string::npos) {
+                    end_pos = std::max(last_brace, last_bracket);
+                } else if (last_brace != std::string::npos) {
+                    end_pos = last_brace;
+                } else {
+                    end_pos = last_bracket;
+                }
+
+                if (start_pos != std::string::npos && end_pos != std::string::npos && end_pos >= start_pos) {
+                    response_content = response_content.substr(start_pos, end_pos - start_pos + 1);
+                }
+
                 json parsed_keywords = json::parse(response_content);
 
                 std::vector<std::string> extracted_terms;

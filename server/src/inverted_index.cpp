@@ -254,8 +254,25 @@ std::string InvertedIndex::generate_snippet(uint32_t doc_id, const std::vector<s
     }
 
     size_t start = (match_pos > 60) ? (match_pos - 60) : 0;
+    if (start > 0) {
+        size_t space_pos = text.find(' ', start);
+        if (space_pos != std::string::npos && space_pos < match_pos) {
+            start = space_pos + 1;
+        }
+    }
+
     size_t length = std::min<size_t>(text.size() - start, 180);
+    if (start + length < text.size()) {
+        size_t last_space = text.rfind(' ', start + length);
+        if (last_space != std::string::npos && last_space > match_pos) {
+            length = last_space - start;
+        }
+    }
+
     std::string snippet = text.substr(start, length);
+    // Заміна переносів рядків на пробіли для охайного відображення сніпету
+    std::replace(snippet.begin(), snippet.end(), '\n', ' ');
+    std::replace(snippet.begin(), snippet.end(), '\r', ' ');
 
     if (start > 0) {
         snippet = "..." + snippet;

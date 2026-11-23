@@ -130,6 +130,15 @@ int main(int argc, char** argv) {
     auto results = j.value("results", json::array());
     uint64_t time_ms = j.value("time_ms", 0);
 
+    if (j.contains("expanded_terms") && !j["expanded_terms"].empty()) {
+        std::cout << "\033[1;35m[LLM Expansion] Extended query terms:\033[0m ";
+        const auto& terms = j["expanded_terms"];
+        for (size_t k = 0; k < terms.size(); ++k) {
+            std::cout << terms[k].get<std::string>() << (k + 1 < terms.size() ? ", " : "\n");
+        }
+        std::cout << "\n";
+    }
+
     std::cout << "\033[1;32m✓ Found " << results.size() << " results in " << time_ms << " ms\033[0m\n\n";
 
     if (results.empty()) {

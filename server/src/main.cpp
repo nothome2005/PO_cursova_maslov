@@ -140,7 +140,8 @@ int main(int argc, char** argv) {
 
         json res_json = {
             {"results", results_array},
-            {"time_ms", search_res.time_ms}
+            {"time_ms", search_res.time_ms},
+            {"expanded_terms", search_res.expanded_terms}
         };
 
         crow::response res(200, res_json.dump());
