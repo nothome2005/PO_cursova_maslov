@@ -1,0 +1,45 @@
+@startuml SequenceDiagram
+autonumber
+actor "Користувач (Web UI / CLI)" as Client
+participant "Search Server (Crow Router)" as Server
+participant "OllamaClient (LLM)" as Ollama
+participant "InvertedIndex (BM25)" as Index
+database "Ollama Service (:11434)" as OllamaDaemon
+
+== 1. Пошуковий пайплайн через WebSocket (/ws/search) ==
+
+Client -> Server: WS Connect & Send: {"query": "space telescope"}
+activate Server
+
+Server -> Ollama: expand_query("space telescope")
+activate Ollama
+Ollama -> OllamaDaemon: POST /api/generate (prompt for synonyms)
+activate OllamaDaemon
+OllamaDaemon --> Ollama: {"response": "{\"keywords\": [\"astronomy\", \"hubble\", \"galaxy\"]}"}
+deactivate OllamaDaemon
+Ollama --> Server: QueryExpansionResult (terms: [space, telescope, astronomy, hubble, galaxy])
+deactivate Ollama
+
+Server -> Client: WS Message 1: {"stage": "query_expansion", "data": {"expanded_terms": [...]}}
+
+Server -> Index: search(expanded_terms, limit=20)
+activate Index
+Index -> Index: Паралельний розрахунок BM25 по шардах
+Index --> Server: std::vector<SearchResult> (sorted by score)
+deactivate Index
+
+Server -> Client: WS Message 2: {"stage": "keyword_search", "data": {"results": [...], "time_ms": 12}}
+Server -> Client: WS Message 3: {"stage": "done"}
+deactivate Server
+
+== 2. Паралельна побудова індексу (/api/index) ==
+
+Client -> Server: POST /api/index {"threads": 8}
+activate Server
+Server -> Server: ThreadPool(8)
+loop Для кожного пакета текстових файлів
+    Server -> Index: register_document() & add_document_terms()
+end
+Server --> Client: {"status": "ok", "documents_indexed": 2000, "time_ms": 710}
+deactivate Server
+@enduml

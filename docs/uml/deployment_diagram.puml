@@ -1,0 +1,36 @@
+@startuml DeploymentDiagram
+skinparam componentStyle uml2
+
+node "Хост користувача" {
+    artifact "Web Browser (Chrome/Firefox)" as Browser
+    artifact "CLI Terminal (search executable)" as CLI
+}
+
+node "Docker Host (Docker Compose Network: search_net)" {
+    node "Container: search_engine_server (:8080)" {
+        component "C++20 Search Engine" as ServerApp {
+            port "REST: 8080" as P8080
+            port "WS: /ws/search" as PWS
+        }
+        folder "Static Assets (/app/public)" as StaticAssets
+        folder "Dataset (/app/data/documents)" as DocFolder
+    }
+
+    node "Container: search_engine_ollama (:11434)" {
+        component "Ollama Service" as OllamaApp
+        database "Volume: ollama_models" as OllamaVol
+    }
+
+    node "Container: search_engine_ollama_init" as InitContainer
+}
+
+Browser --> P8080 : HTTP GET / (Web UI)
+Browser --> PWS : WebSocket /ws/search
+CLI --> P8080 : HTTP POST /api/search
+
+ServerApp ..> StaticAssets : Serves
+ServerApp ..> DocFolder : Multi-threaded Indexing
+ServerApp --> OllamaApp : HTTP POST /api/generate (Port 11434)
+OllamaApp --> OllamaVol : Stores Weights
+InitContainer --> OllamaApp : Auto-pulls llama3.2:1b
+@enduml

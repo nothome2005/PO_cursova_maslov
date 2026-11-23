@@ -1,0 +1,38 @@
+@startuml UseCaseDiagram
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+
+actor "Користувач (Web UI / CLI)" as User
+actor "Ollama LLM Service" as LLM
+
+rectangle "Пошукова система з паралельними обчисленнями" {
+    usecase "UC1: Пошук за ключовими словами (Keyword Search)" as UC1
+    usecase "UC2: Пошук з розширенням запиту (LLM Query Expansion)" as UC2
+    usecase "UC3: Стрімінг етапів пошуку через WebSocket" as UC3
+    usecase "UC4: Побудова / Перебудова індексу (з вибором потоків)" as UC4
+    usecase "UC5: Моніторинг статистики індексу (/api/stats)" as UC5
+    usecase "UC6: Перевірка стану системи (/api/health)" as UC6
+    usecase "UC7: Дослідження масштабованості (Бенчмарк)" as UC7
+    
+    usecase "Паралельна обробка документів у ThreadPool" as SubIndex
+    usecase "Шардоване блокування інвертованого індексу" as SubLock
+    usecase "Генерація синонімів через REST" as SubLLM
+}
+
+User --> UC1
+User --> UC2
+User --> UC3
+User --> UC4
+User --> UC5
+User --> UC6
+User --> UC7
+
+UC2 ..> SubLLM : <<include>>
+SubLLM --> LLM
+
+UC4 ..> SubIndex : <<include>>
+SubIndex ..> SubLock : <<include>>
+
+UC3 ..> UC2 : <<include>>
+UC3 ..> UC1 : <<include>>
+@enduml

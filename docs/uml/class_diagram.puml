@@ -1,0 +1,92 @@
+@startuml ClassDiagram
+skinparam classAttributeIconSize 0
+
+package "search" {
+    class ThreadPool {
+        - threads_: std::vector<std::thread>
+        - tasks_: std::queue<std::function<void()>>
+        - queue_mutex_: std::mutex
+        - condition_: std::condition_variable
+        - wait_condition_: std::condition_variable
+        - stop_: std::atomic<bool>
+        - active_tasks_: std::atomic<size_t>
+        + ThreadPool(threads: size_t)
+        + ~ThreadPool()
+        + enqueue(f: F, ...args: Args): std::future<ReturnType>
+        + wait_all(): void
+        + get_thread_count(): size_t
+        + get_queue_size(): size_t
+    }
+
+    struct Posting {
+        + doc_id: uint32_t
+        + term_frequency: uint32_t
+    }
+
+    struct DocumentInfo {
+        + id: uint32_t
+        + filename: std::string
+        + path: std::string
+        + total_words: uint32_t
+        + snippet: std::string
+    }
+
+    struct SearchResult {
+        + doc_id: std::string
+        + score: double
+        + snippet: std::string
+    }
+
+    class InvertedIndex {
+        - shards_: std::vector<IndexShard>
+        - docs_mutex_: std::shared_mutex
+        - documents_: std::vector<DocumentInfo>
+        - doc_full_texts_: std::unordered_map<uint32_t, std::string>
+        - total_words_all_docs_: std::atomic<uint64_t>
+        + InvertedIndex()
+        + clear(): void
+        + register_document(filename, path, total_words, full_text): uint32_t
+        + add_document_terms(doc_id, term_counts): void
+        + search(query_terms, limit): std::vector<SearchResult>
+        + get_document_count(): size_t
+        + get_avg_doc_length(): double
+        + {static} tokenize(text): std::vector<std::string>
+        + generate_snippet(doc_id, query_terms): std::string
+    }
+
+    class OllamaClient {
+        - host_: std::string
+        - port_: int
+        - model_: std::string
+        + OllamaClient(host, port, model)
+        + is_healthy(): bool
+        + expand_query(query): QueryExpansionResult
+        + set_connection(host, port, model): void
+        - http_post(endpoint, json_body, timeout): std::string
+        - http_get_status(endpoint, timeout): int
+    }
+
+    class SearchEngine {
+        - data_directory_: std::string
+        - index_: InvertedIndex
+        - ollama_client_: OllamaClient
+        - last_indexed_docs_: std::atomic<size_t>
+        - last_build_time_ms_: std::atomic<uint64_t>
+        - last_threads_used_: std::atomic<size_t>
+        + SearchEngine(data_dir, ollama_host, ollama_port, ollama_model)
+        + build_index(threads): IndexStats
+        + search_keyword(query, limit): SearchResponse
+        + search_with_expansion(query, limit): SearchResponse
+        + get_stats(): IndexStats
+        + is_ollama_healthy(): bool
+        - process_file(file_path): void
+    }
+}
+
+InvertedIndex *-- Posting
+InvertedIndex *-- DocumentInfo
+InvertedIndex ..> SearchResult : produces
+SearchEngine *-- InvertedIndex
+SearchEngine *-- OllamaClient
+SearchEngine ..> ThreadPool : uses for indexing
+@enduml
