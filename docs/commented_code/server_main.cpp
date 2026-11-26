@@ -1,0 +1,258 @@
+#include "search_engine.hpp"
+#include <crow.h>          // Багатопотоковий C++ HTTP та WebSocket фреймворк
+#include <nlohmann/json.hpp>
+#include <iostream>
+#include <cstdlib>
+#include <string>
+#include <filesystem>
+#include <thread>
+#include <chrono>
+
+using json = nlohmann::json;
+
+int main(int argc, char** argv) {
+    (void)argc;
+    (void)argv;
+
+    // Параметри за замовчуванням (перевизначаються змінними середовища з docker-compose.yml)
+    std::string data_dir = "./data/documents";
+    std::string ollama_host = "ollama";
+    int ollama_port = 11434;
+    std::string ollama_model = "llama3.2:1b";
+    int server_port = 8088;
+
+    if (const char* env_dir = std::getenv("DATA_DIR")) data_dir = env_dir;
+    if (const char* env_host = std::getenv("OLLAMA_HOST")) ollama_host = env_host;
+    if (const char* env_port = std::getenv("OLLAMA_PORT")) ollama_port = std::stoi(env_port);
+    if (const char* env_model = std::getenv("OLLAMA_MODEL")) ollama_model = env_model;
+    if (const char* env_sport = std::getenv("PORT")) server_port = std::stoi(env_sport);
+
+    std::cout << "==================================================" << std::endl;
+    std::cout << "  Parallel Search Engine & LLM Query Expansion" << std::endl;
+    std::cout << "  Port: " << server_port << std::endl;
+    std::cout << "  Data directory: " << data_dir << std::endl;
+    std::cout << "  Ollama: http://" << ollama_host << ":" << ollama_port << " (" << ollama_model << ")" << std::endl;
+    std::cout << "==================================================" << std::endl;
+
+    auto engine = std::make_shared<search::SearchEngine>(data_dir, ollama_host, ollama_port, ollama_model);
+
+    // Запускаємо початкову індексацію у ФОНОВОМУ потоці.
+    // Це важливо: веб-сервер піднімається миттєво, тому GET /api/health віддає 200 OK одразу
+    // після docker compose up, не чекаючи завершення індексації 3.72 ГБ тексту.
+    std::cout << "[Init] Starting background initial dataset indexing with 4 threads..." << std::endl;
+    std::thread([engine]() {
+        engine->build_index(4);
+    }).detach();
+
+    crow::SimpleApp app;
+
+    // Допоміжна лямбда для додавання CORS-заголовків (щоб Web UI міг звертатися без обмежень браузера)
+    auto add_cors_headers = [](crow::response& res) {
+        res.add_header("Access-Control-Allow-Origin", "*");
+        res.add_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        res.add_header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    };
+
+    CROW_ROUTE(app, "/api/<path>")
+    .methods(crow::HTTPMethod::OPTIONS)
+    ([&add_cors_headers](const std::string&) {
+        crow::response res(204);
+        add_cors_headers(res);
+        return res;
+    });
+
+    // 1. GET /api/health — перевірка готовності сервера та доступності Ollama
+    CROW_ROUTE(app, "/api/health")
+    .methods(crow::HTTPMethod::GET)
+    ([&engine, &add_cors_headers]() {
+        bool ollama_ok = engine->is_ollama_healthy();
+        json res_json = {
+            {"status", "ok"},
+            {"ollama", ollama_ok}
+        };
+        crow::response res(200, res_json.dump());
+        res.set_header("Content-Type", "application/json");
+        add_cors_headers(res);
+        return res;
+    });
+
+    // 2. POST /api/index — запуск паралельної перебудови індексу з заданою кількістю потоків
+    CROW_ROUTE(app, "/api/index")
+    .methods(crow::HTTPMethod::POST)
+    ([&engine, &add_cors_headers](const crow::request& req) {
+        size_t threads = 4;
+        try {
+            auto body_json = json::parse(req.body);
+            if (body_json.contains("threads") && body_json["threads"].is_number()) {
+                threads = body_json["threads"].get<size_t>();
+            }
+        } catch (...) {
+            // Якщо тіло порожнє або некоректне — беремо 4 потоки
+        }
+
+        auto stats = engine->build_index(threads);
+        json res_json = {
+            {"status", "ok"},
+            {"documents_indexed", stats.documents},
+            {"time_ms", stats.index_build_time_ms}
+        };
+
+        crow::response res(200, res_json.dump());
+        res.set_header("Content-Type", "application/json");
+        add_cors_headers(res);
+        return res;
+    });
+
+    // 3. POST /api/search — пошук у режимі "keyword" або "llm"
+    CROW_ROUTE(app, "/api/search")
+    .methods(crow::HTTPMethod::POST)
+    ([&engine, &add_cors_headers](const crow::request& req) {
+        std::string query;
+        std::string mode = "keyword";
+
+        try {
+            auto body_json = json::parse(req.body);
+            if (body_json.contains("query") && body_json["query"].is_string()) {
+                query = body_json["query"].get<std::string>();
+            }
+            if (body_json.contains("mode") && body_json["mode"].is_string()) {
+                mode = body_json["mode"].get<std::string>();
+            }
+        } catch (const std::exception&) {
+            crow::response res(400, json({{"error", "Invalid JSON"}}).dump());
+            add_cors_headers(res);
+            return res;
+        }
+
+        search::SearchResponse search_res;
+        if (mode == "keyword") {
+            search_res = engine->search_keyword(query);
+        } else {
+            search_res = engine->search_with_expansion(query);
+        }
+
+        json results_array = json::array();
+        for (const auto& r : search_res.results) {
+            results_array.push_back({
+                {"doc_id", r.doc_id},
+                {"score", r.score},
+                {"snippet", r.snippet}
+            });
+        }
+
+        json res_json = {
+            {"results", results_array},
+            {"time_ms", search_res.time_ms},
+            {"expanded_terms", search_res.expanded_terms}
+        };
+
+        crow::response res(200, res_json.dump());
+        res.set_header("Content-Type", "application/json");
+        add_cors_headers(res);
+        return res;
+    });
+
+    // 4. GET /api/stats — поточна статистика індексу
+    CROW_ROUTE(app, "/api/stats")
+    .methods(crow::HTTPMethod::GET)
+    ([&engine, &add_cors_headers]() {
+        auto stats = engine->get_stats();
+        json res_json = {
+            {"documents", stats.documents},
+            {"index_build_time_ms", stats.index_build_time_ms},
+            {"threads_used", stats.threads_used}
+        };
+
+        crow::response res(200, res_json.dump());
+        res.set_header("Content-Type", "application/json");
+        add_cors_headers(res);
+        return res;
+    });
+
+    // 5. WebSocket /ws/search — покроковий стрімінг пошукового пайплайну в реальному часі
+    CROW_WEBSOCKET_ROUTE(app, "/ws/search")
+    .onopen([&](crow::websocket::connection& conn) {
+        std::cout << "[WS] Client connected: " << &conn << std::endl;
+    })
+    .onclose([&](crow::websocket::connection& conn, const std::string& reason) {
+        std::cout << "[WS] Client disconnected: " << &conn << " (" << reason << ")" << std::endl;
+    })
+    .onmessage([&engine](crow::websocket::connection& conn, const std::string& data, bool is_binary) {
+        if (is_binary) return;
+        std::string query;
+        try {
+            auto req_json = json::parse(data);
+            if (req_json.contains("query") && req_json["query"].is_string()) {
+                query = req_json["query"].get<std::string>();
+            }
+        } catch (...) {
+            query = data;
+        }
+
+        if (query.empty()) return;
+
+        // Етап 1: Query Expansion через Ollama (результат одразу відправляємо клієнту по WebSocket)
+        auto expansion = engine->get_ollama_client().expand_query(query);
+        json step1 = {
+            {"stage", "query_expansion"},
+            {"data", {
+                {"original", query},
+                {"expanded_terms", expansion.expanded_terms}
+            }}
+        };
+        conn.send_text(step1.dump());
+
+        // Етап 2: Пошук у шард-індексі за ВЖЕ розширеними термами (без повторного виклику LLM!)
+        auto search_res = engine->search_terms(query, expansion.expanded_terms);
+
+        json results_arr = json::array();
+        for (const auto& r : search_res.results) {
+            results_arr.push_back({
+                {"doc_id", r.doc_id},
+                {"score", r.score},
+                {"snippet", r.snippet}
+            });
+        }
+
+        json step2 = {
+            {"stage", "keyword_search"},
+            {"data", {
+                {"results", results_arr},
+                {"time_ms", search_res.time_ms}
+            }}
+        };
+        conn.send_text(step2.dump());
+
+        // Етап 3: Фінальний сигнал завершення пайплайну
+        json step3 = {{"stage", "done"}};
+        conn.send_text(step3.dump());
+    });
+
+    // 6. Роздача автономного Web UI (public/index.html)
+    std::filesystem::path public_dir = "public";
+    if (!std::filesystem::exists(public_dir)) {
+        if (std::filesystem::exists("../public")) {
+            public_dir = "../public";
+        } else if (std::filesystem::exists("../../public")) {
+            public_dir = "../../public";
+        }
+    }
+    std::cout << "[Server] Web UI static root: " << std::filesystem::absolute(public_dir) << std::endl;
+
+    CROW_ROUTE(app, "/")
+    ([public_dir]() {
+        crow::response res;
+        auto index_path = public_dir / "index.html";
+        if (std::filesystem::exists(index_path)) {
+            res.set_static_file_info(index_path.string());
+        } else {
+            res.code = 404;
+            res.write("Web UI index.html not found");
+        }
+        return res;
+    });
+
+    // Запускаємо Crow у багатопотоковому режимі (використовує пул потоків Asio для паралельної обробки HTTP/WS)
+    app.port(server_port).multithreaded().run();
+    return 0;
+}
