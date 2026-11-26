@@ -38,43 +38,49 @@ uint32_t InvertedIndex::register_document(const std::string& filename, const std
     return id;
 }
 
-
-void InvertedIndex::add_document_terms(uint32_t doc_id, 
-                                      const std::unordered_map<std::string, uint32_t>& term_counts) {
+void InvertedIndex::add_document_terms(uint32_t doc_id,
+                                       const StringHashMap<uint32_t>& term_counts) {
     // Групуємо терміни за шардами, щоб захоплювати м'ютекс кожного шарду 1 раз на документ
     std::vector<std::vector<std::pair<std::string, uint32_t>>> shard_batches(NUM_SHARDS);
-    for (const auto& [term, count] : term_counts) {
-        if (term.empty()) continue;
-        shard_batches[get_shard_index(term)].emplace_back(term, count);
-    }
+    term_counts.for_each([&](const std::string& term, uint32_t count) {
+        if (!term.empty()) {
+            shard_batches[get_shard_index(term)].emplace_back(term, count);
+        }
+    });
 
     for (size_t shard_idx = 0; shard_idx < NUM_SHARDS; ++shard_idx) {
         if (shard_batches[shard_idx].empty()) continue;
         auto& shard = shards_[shard_idx];
         std::unique_lock<std::shared_mutex> lock(shard.mutex);
         for (const auto& [term, count] : shard_batches[shard_idx]) {
-            shard.table[term].push_back(Posting{doc_id, count});
+            shard.table.get_or_insert(term).push_back(Posting{doc_id, count});
         }
     }
 }
 
 std::vector<SearchResult> InvertedIndex::search(const std::vector<std::string>& query_terms, size_t limit) const {
-    size_t total_docs = get_document_count();
-    if (total_docs == 0 || query_terms.empty()) {
+    if (query_terms.empty()) {
         return {};
     }
 
-    double avgdl = get_avg_doc_length();
+    // Захоплюємо shared_lock на метадані документів один раз на весь пошук
+    std::shared_lock<std::shared_mutex> docs_lock(docs_mutex_);
+    size_t total_docs = documents_.size();
+    if (total_docs == 0) {
+        return {};
+    }
+
+    double avgdl = static_cast<double>(total_words_all_docs_.load()) / static_cast<double>(total_docs);
     if (avgdl <= 0.0) avgdl = 1.0;
 
     const double k1 = 1.2;
     const double b = 0.75;
 
-    // doc_id -> сумарний BM25 score
-    std::unordered_map<uint32_t, double> doc_scores;
-
-    // Захоплюємо shared_lock на метадані документів один раз на весь пошук
-    std::shared_lock<std::shared_mutex> docs_lock(docs_mutex_);
+    // Власний масив балів BM25 замість std::unordered_map (O(1) прямий доступ за індексом doc_id)
+    std::vector<double> doc_scores(total_docs, 0.0);
+    std::vector<uint8_t> doc_seen(total_docs, 0);
+    std::vector<uint32_t> matched_docs;
+    matched_docs.reserve(256);
 
     for (const auto& raw_term : query_terms) {
         std::string term = raw_term;
@@ -86,9 +92,9 @@ std::vector<SearchResult> InvertedIndex::search(const std::vector<std::string>& 
         std::vector<Posting> postings;
         {
             std::shared_lock<std::shared_mutex> lock(shard.mutex);
-            auto it = shard.table.find(term);
-            if (it != shard.table.end()) {
-                postings = it->second;
+            const auto* found = shard.table.find(term);
+            if (found != nullptr) {
+                postings = *found;
             }
         }
 
@@ -96,38 +102,47 @@ std::vector<SearchResult> InvertedIndex::search(const std::vector<std::string>& 
 
         size_t doc_freq = postings.size();
         // Розрахунок IDF
-        double idf = std::log(1.0 + (static_cast<double>(total_docs) - static_cast<double>(doc_freq) + 0.5) / 
-                                     (static_cast<double>(doc_freq) + 0.5));
+        double idf = std::log(1.0 + (static_cast<double>(total_docs) - static_cast<double>(doc_freq) + 0.5) /
+                                    (static_cast<double>(doc_freq) + 0.5));
         if (idf < 0.0) idf = 0.01;
 
         for (const auto& posting : postings) {
             uint32_t doc_id = posting.doc_id;
+            if (doc_id >= total_docs) continue;
             uint32_t tf = posting.term_frequency;
-            
-            uint32_t doc_len = (doc_id < documents_.size()) ? documents_[doc_id].total_words : 0;
+
+            uint32_t doc_len = documents_[doc_id].total_words;
             if (doc_len == 0) doc_len = static_cast<uint32_t>(avgdl);
 
             double numerator = static_cast<double>(tf) * (k1 + 1.0);
             double denominator = static_cast<double>(tf) + k1 * (1.0 - b + b * (static_cast<double>(doc_len) / avgdl));
             double term_score = idf * (numerator / denominator);
 
+            if (!doc_seen[doc_id]) {
+                doc_seen[doc_id] = 1;
+                matched_docs.push_back(doc_id);
+            }
             doc_scores[doc_id] += term_score;
         }
     }
 
-    if (doc_scores.empty()) {
+    if (matched_docs.empty()) {
         return {};
     }
 
     // Сортування результатів за спаданням балу BM25
-    std::vector<std::pair<uint32_t, double>> sorted_results(doc_scores.begin(), doc_scores.end());
-    std::sort(sorted_results.begin(), sorted_results.end(), [](const auto& a, const auto& b) {
-        return a.second > b.second;
-    });
-
-    if (sorted_results.size() > limit) {
-        sorted_results.resize(limit);
+    std::vector<std::pair<uint32_t, double>> sorted_results;
+    sorted_results.reserve(matched_docs.size());
+    for (uint32_t doc_id : matched_docs) {
+        sorted_results.emplace_back(doc_id, doc_scores[doc_id]);
     }
+
+    size_t top_k = std::min(limit, sorted_results.size());
+    std::partial_sort(sorted_results.begin(), sorted_results.begin() + top_k, sorted_results.end(),
+                      [](const auto& a, const auto& b) {
+                          return a.second > b.second;
+                      });
+    sorted_results.resize(top_k);
 
     // Нормалізація оцінки (від 0.0 до 1.0 для зручності відображення)
     double max_score = sorted_results.front().second;
@@ -137,12 +152,8 @@ std::vector<SearchResult> InvertedIndex::search(const std::vector<std::string>& 
     results.reserve(sorted_results.size());
 
     for (const auto& [doc_id, raw_score] : sorted_results) {
-        std::string filename;
-        std::string snippet;
-        if (doc_id < documents_.size()) {
-            filename = documents_[doc_id].filename;
-            snippet = documents_[doc_id].snippet;
-        }
+        std::string filename = documents_[doc_id].filename;
+        std::string snippet = documents_[doc_id].snippet;
         if (filename.empty()) {
             filename = "doc_" + std::to_string(doc_id);
         }
@@ -150,11 +161,7 @@ std::vector<SearchResult> InvertedIndex::search(const std::vector<std::string>& 
         double normalized_score = std::round((raw_score / max_score) * 100.0) / 100.0;
         if (normalized_score <= 0.0) normalized_score = 0.01;
 
-        results.push_back(SearchResult{
-            filename,
-            normalized_score,
-            snippet
-        });
+        results.push_back(SearchResult{filename, normalized_score, snippet});
     }
 
     return results;
@@ -172,21 +179,19 @@ double InvertedIndex::get_avg_doc_length() const {
 }
 
 std::vector<std::string> InvertedIndex::tokenize(const std::string& text) {
-    const auto& stop_words = get_stop_words();
     std::vector<std::string> tokens;
-    tokens.reserve(text.size() / 6); // Попередня алокація для оптимізації реаллокацій вектора
+    tokens.reserve(text.size() / 6);
     std::string current_word;
 
     for (size_t i = 0; i < text.size(); ++i) {
         char c = text[i];
         if (std::isalnum(static_cast<unsigned char>(c))) {
             current_word += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        } else if ((c == '\'' || c == '-') && !current_word.empty() && 
+        } else if ((c == '\'' || c == '-') && !current_word.empty() &&
                    i + 1 < text.size() && std::isalnum(static_cast<unsigned char>(text[i + 1]))) {
-            // Збереження внутрішніх дефісів та апострофів (наприклад, user-friendly, don't)
             current_word += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         } else if (!current_word.empty()) {
-            if (current_word.length() >= 2 && stop_words.find(current_word) == stop_words.end()) {
+            if (current_word.length() >= 2 && !is_stop_word(current_word)) {
                 tokens.push_back(std::move(current_word));
             }
             current_word.clear();
@@ -194,7 +199,7 @@ std::vector<std::string> InvertedIndex::tokenize(const std::string& text) {
     }
 
     if (!current_word.empty()) {
-        if (current_word.length() >= 2 && stop_words.find(current_word) == stop_words.end()) {
+        if (current_word.length() >= 2 && !is_stop_word(current_word)) {
             tokens.push_back(std::move(current_word));
         }
     }
@@ -203,9 +208,8 @@ std::vector<std::string> InvertedIndex::tokenize(const std::string& text) {
 }
 
 void InvertedIndex::count_tokens(const std::string& text,
-                                 std::unordered_map<std::string, uint32_t>& term_counts,
+                                 StringHashMap<uint32_t>& term_counts,
                                  uint32_t& total_words) {
-    const auto& stop_words = get_stop_words();
     std::string current_word;
     current_word.reserve(32);
     total_words = 0;
@@ -218,8 +222,8 @@ void InvertedIndex::count_tokens(const std::string& text,
                    i + 1 < text.size() && std::isalnum(static_cast<unsigned char>(text[i + 1]))) {
             current_word += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         } else if (!current_word.empty()) {
-            if (current_word.length() >= 2 && stop_words.find(current_word) == stop_words.end()) {
-                ++term_counts[current_word];
+            if (current_word.length() >= 2 && !is_stop_word(current_word)) {
+                ++term_counts.get_or_insert(current_word);
                 ++total_words;
             }
             current_word.clear();
@@ -227,8 +231,8 @@ void InvertedIndex::count_tokens(const std::string& text,
     }
 
     if (!current_word.empty()) {
-        if (current_word.length() >= 2 && stop_words.find(current_word) == stop_words.end()) {
-            ++term_counts[current_word];
+        if (current_word.length() >= 2 && !is_stop_word(current_word)) {
+            ++term_counts.get_or_insert(current_word);
             ++total_words;
         }
     }
@@ -254,7 +258,6 @@ std::string InvertedIndex::generate_snippet(uint32_t doc_id, const std::vector<s
         return default_snippet;
     }
 
-    // Зчитуємо перші 64 КБ файлу для швидкого пошуку сніпету
     std::string text;
     text.resize(65536);
     file.read(&text[0], text.size());
@@ -266,8 +269,8 @@ std::string InvertedIndex::generate_snippet(uint32_t doc_id, const std::vector<s
     }
 
     std::string lower_text = text;
-    std::transform(lower_text.begin(), lower_text.end(), lower_text.begin(), [](unsigned char c) { 
-        return std::tolower(c); 
+    std::transform(lower_text.begin(), lower_text.end(), lower_text.begin(), [](unsigned char c) {
+        return std::tolower(c);
     });
 
     size_t match_pos = std::string::npos;
@@ -305,36 +308,36 @@ std::string InvertedIndex::generate_snippet(uint32_t doc_id, const std::vector<s
     }
 
     std::string snippet = text.substr(start, length);
-    // Заміна переносів рядків на пробіли для охайного відображення сніпету
     std::replace(snippet.begin(), snippet.end(), '\n', ' ');
     std::replace(snippet.begin(), snippet.end(), '\r', ' ');
 
-    if (start > 0) {
-        snippet = "..." + snippet;
-    }
-    if (start + length < text.size()) {
-        snippet += "...";
-    }
+    if (start > 0) snippet = "..." + snippet;
+    if (start + length < text.size()) snippet += "...";
 
     return snippet;
 }
 
-
-const std::unordered_set<std::string>& InvertedIndex::get_stop_words() {
-    static const std::unordered_set<std::string> stop_words = {
-        "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", 
-        "as", "at", "be", "because", "been", "before", "being", "below", "between", "both", "but", 
-        "by", "can", "could", "did", "do", "does", "doing", "down", "during", "each", "few", "for", 
-        "from", "further", "had", "has", "have", "having", "he", "her", "here", "hers", "herself", 
-        "him", "himself", "his", "how", "i", "if", "in", "into", "is", "it", "its", "itself", "just", 
-        "me", "more", "most", "my", "myself", "no", "nor", "not", "now", "of", "off", "on", "once", 
-        "only", "or", "other", "our", "ours", "ourselves", "out", "over", "own", "same", "she", 
-        "should", "so", "some", "such", "than", "that", "the", "their", "theirs", "them", "themselves", 
-        "then", "there", "these", "they", "this", "those", "through", "to", "too", "under", "until", 
-        "up", "very", "was", "we", "were", "what", "when", "where", "which", "while", "who", "whom", 
+const std::vector<std::string>& InvertedIndex::get_stop_words() {
+    // Відсортований у лексикографічному порядку масив для бінарного пошуку за O(log N)
+    static const std::vector<std::string> stop_words = {
+        "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are",
+        "as", "at", "be", "because", "been", "before", "being", "below", "between", "both", "but",
+        "by", "can", "could", "did", "do", "does", "doing", "down", "during", "each", "few", "for",
+        "from", "further", "had", "has", "have", "having", "he", "her", "here", "hers", "herself",
+        "him", "himself", "his", "how", "i", "if", "in", "into", "is", "it", "its", "itself", "just",
+        "me", "more", "most", "my", "myself", "no", "nor", "not", "now", "of", "off", "on", "once",
+        "only", "or", "other", "our", "ours", "ourselves", "out", "over", "own", "same", "she",
+        "should", "so", "some", "such", "than", "that", "the", "their", "theirs", "them", "themselves",
+        "then", "there", "these", "they", "this", "those", "through", "to", "too", "under", "until",
+        "up", "very", "was", "we", "were", "what", "when", "where", "which", "while", "who", "whom",
         "why", "with", "would", "you", "your", "yours", "yourself", "yourselves"
     };
     return stop_words;
+}
+
+bool InvertedIndex::is_stop_word(const std::string& word) {
+    const auto& stop_words = get_stop_words();
+    return std::binary_search(stop_words.begin(), stop_words.end(), word);
 }
 
 } // namespace search

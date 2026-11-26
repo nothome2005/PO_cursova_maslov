@@ -78,7 +78,7 @@ void SearchEngine::process_file(const std::filesystem::path& file_path) {
     file.seekg(0);
     file.read(&content[0], file_size);
 
-    std::unordered_map<std::string, uint32_t> term_counts;
+    StringHashMap<uint32_t> term_counts(512);
     uint32_t total_words = 0;
     InvertedIndex::count_tokens(content, term_counts, total_words);
     if (total_words == 0) return;
