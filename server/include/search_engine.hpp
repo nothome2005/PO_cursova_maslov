@@ -41,6 +41,11 @@ public:
     // Розширений пошук через LLM (Ollama Query Expansion)
     SearchResponse search_with_expansion(const std::string& query, size_t limit = 20) const;
 
+    // Пошук за вже розширеним списком термів (без повторного виклику Ollama)
+    SearchResponse search_terms(const std::string& original_query,
+                                const std::vector<std::string>& terms,
+                                size_t limit = 20) const;
+
     // Отримання поточної статистики
     IndexStats get_stats() const;
 

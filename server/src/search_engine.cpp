@@ -103,11 +103,12 @@ SearchResponse SearchEngine::search_keyword(const std::string& query, size_t lim
     return response;
 }
 
-SearchResponse SearchEngine::search_with_expansion(const std::string& query, size_t limit) const {
+SearchResponse SearchEngine::search_terms(const std::string& original_query,
+                                          const std::vector<std::string>& terms,
+                                          size_t limit) const {
     auto start_time = std::chrono::high_resolution_clock::now();
 
-    QueryExpansionResult expansion = ollama_client_.expand_query(query);
-    std::vector<SearchResult> results = index_.search(expansion.expanded_terms, limit);
+    std::vector<SearchResult> results = index_.search(terms, limit);
 
     auto end_time = std::chrono::high_resolution_clock::now();
     auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
@@ -115,9 +116,14 @@ SearchResponse SearchEngine::search_with_expansion(const std::string& query, siz
     SearchResponse response;
     response.results = std::move(results);
     response.time_ms = static_cast<uint64_t>(duration_ms);
-    response.expanded_terms = std::move(expansion.expanded_terms);
-    response.original_query = query;
+    response.expanded_terms = terms;
+    response.original_query = original_query;
     return response;
+}
+
+SearchResponse SearchEngine::search_with_expansion(const std::string& query, size_t limit) const {
+    QueryExpansionResult expansion = ollama_client_.expand_query(query);
+    return search_terms(query, expansion.expanded_terms, limit);
 }
 
 IndexStats SearchEngine::get_stats() const {

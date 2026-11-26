@@ -36,9 +36,11 @@ int main(int argc, char** argv) {
 
     auto engine = std::make_shared<search::SearchEngine>(data_dir, ollama_host, ollama_port, ollama_model);
 
-    // Початкова індексація за замовчуванням при старті
-    std::cout << "[Init] Starting initial dataset indexing with 4 threads..." << std::endl;
-    engine->build_index(4);
+    // Початкова індексація у фоні, щоб /api/health відповідав одразу після старту
+    std::cout << "[Init] Starting background initial dataset indexing with 4 threads..." << std::endl;
+    std::thread([engine]() {
+        engine->build_index(4);
+    }).detach();
 
 
     crow::SimpleApp app;
@@ -200,11 +202,8 @@ int main(int argc, char** argv) {
         };
         conn.send_text(step1.dump());
 
-        // Етап 2: Keyword Search (Inverted Index)
-        auto start_t = std::chrono::high_resolution_clock::now();
-        auto search_res = engine->search_with_expansion(query);
-        auto end_t = std::chrono::high_resolution_clock::now();
-        auto search_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_t - start_t).count();
+        // Етап 2: Keyword Search (Inverted Index) за вже розширеними термами
+        auto search_res = engine->search_terms(query, expansion.expanded_terms);
 
         json results_arr = json::array();
         for (const auto& r : search_res.results) {
@@ -219,7 +218,7 @@ int main(int argc, char** argv) {
             {"stage", "keyword_search"},
             {"data", {
                 {"results", results_arr},
-                {"time_ms", search_time_ms}
+                {"time_ms", search_res.time_ms}
             }}
         };
         conn.send_text(step2.dump());
@@ -252,37 +251,6 @@ int main(int argc, char** argv) {
         } else {
             res.code = 404;
             res.write("Web UI index.html not found");
-        }
-        return res;
-    });
-
-    CROW_ROUTE(app, "/assets/<path>")
-    ([public_dir](const std::string& path) {
-        crow::response res;
-        auto full_path = public_dir / "assets" / path;
-        if (std::filesystem::exists(full_path) && std::filesystem::is_regular_file(full_path)) {
-            res.set_static_file_info(full_path.string());
-        } else {
-            res.code = 404;
-            res.write("Asset not found");
-        }
-        return res;
-    });
-
-    CROW_ROUTE(app, "/<path>")
-    ([public_dir](const std::string& path) {
-        crow::response res;
-        auto full_path = public_dir / path;
-        if (std::filesystem::exists(full_path) && std::filesystem::is_regular_file(full_path)) {
-            res.set_static_file_info(full_path.string());
-        } else {
-            auto index_path = public_dir / "index.html";
-            if (std::filesystem::exists(index_path)) {
-                res.set_static_file_info(index_path.string());
-            } else {
-                res.code = 404;
-                res.write("Not found");
-            }
         }
         return res;
     });
