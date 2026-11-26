@@ -79,11 +79,16 @@ QueryExpansionResult OllamaClient::expand_query(const std::string& query) const 
         {"format", "json"},
         {"options", {
             {"temperature", 0.3},
-            {"num_predict", 60}
+            {"num_predict", 150}
         }}
     };
 
-    std::string response_str = http_post("/api/generate", request_payload.dump(), 60);
+    std::string response_str;
+    {
+        // Ollama обробляє один запит за раз — синхронізована черга звернень до LLM
+        std::lock_guard<std::mutex> lock(request_mutex_);
+        response_str = http_post("/api/generate", request_payload.dump(), 60);
+    }
 
     if (!response_str.empty()) {
         try {

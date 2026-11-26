@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <mutex>
 
 namespace search {
 
@@ -30,6 +31,7 @@ private:
     std::string host_;
     int port_;
     std::string model_;
+    mutable std::mutex request_mutex_;
 
     // Внутрішній метод для виконання HTTP POST запиту
     std::string http_post(const std::string& endpoint, const std::string& json_body, int timeout_seconds = 8) const;

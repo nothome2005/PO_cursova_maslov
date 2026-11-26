@@ -64,6 +64,11 @@ public:
     // Токенізація тексту на список слів (очищення, нижній регістр, фільтрація стоп-слів)
     static std::vector<std::string> tokenize(const std::string& text);
 
+    // Швидкий підрахунок частот термінів без створення проміжного вектора токенів
+    static void count_tokens(const std::string& text,
+                             std::unordered_map<std::string, uint32_t>& term_counts,
+                             uint32_t& total_words);
+
     // Витяг релевантного сніпету тексту навколо знайдених слів
     std::string generate_snippet(uint32_t doc_id, const std::vector<std::string>& query_terms) const;
 

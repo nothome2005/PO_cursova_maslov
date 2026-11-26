@@ -8,6 +8,7 @@
 #include <chrono>
 #include <filesystem>
 #include <atomic>
+#include <mutex>
 
 namespace search {
 
@@ -67,6 +68,7 @@ private:
     std::atomic<size_t> last_indexed_docs_{0};
     std::atomic<uint64_t> last_build_time_ms_{0};
     std::atomic<size_t> last_threads_used_{0};
+    mutable std::mutex index_build_mutex_;
 
     // Обробка одного файлу в потоці
     void process_file(const std::filesystem::path& file_path);

@@ -14,6 +14,7 @@ SearchEngine::SearchEngine(std::string data_directory,
       ollama_client_(std::move(ollama_host), ollama_port, std::move(ollama_model)) {}
 
 IndexStats SearchEngine::build_index(size_t threads) {
+    std::lock_guard<std::mutex> build_lock(index_build_mutex_);
     if (threads == 0) threads = 1;
 
     auto start_time = std::chrono::high_resolution_clock::now();
@@ -24,7 +25,10 @@ IndexStats SearchEngine::build_index(size_t threads) {
         if (std::filesystem::exists(data_directory_) && std::filesystem::is_directory(data_directory_)) {
             for (const auto& entry : std::filesystem::recursive_directory_iterator(data_directory_)) {
                 if (entry.is_regular_file()) {
-                    files.push_back(entry.path());
+                    const std::string fname = entry.path().filename().string();
+                    if (!fname.empty() && fname[0] != '.') {
+                        files.push_back(entry.path());
+                    }
                 }
             }
         }
@@ -64,25 +68,23 @@ IndexStats SearchEngine::build_index(size_t threads) {
 }
 
 void SearchEngine::process_file(const std::filesystem::path& file_path) {
-    std::ifstream file(file_path, std::ios::binary);
+    std::ifstream file(file_path, std::ios::binary | std::ios::ate);
     if (!file.is_open()) return;
 
-    std::ostringstream ss;
-    ss << file.rdbuf();
-    std::string content = ss.str();
-    if (content.empty()) return;
+    const auto file_size = file.tellg();
+    if (file_size <= 0) return;
 
-    std::vector<std::string> tokens = InvertedIndex::tokenize(content);
-    if (tokens.empty()) return;
+    std::string content(static_cast<size_t>(file_size), '\0');
+    file.seekg(0);
+    file.read(&content[0], file_size);
 
     std::unordered_map<std::string, uint32_t> term_counts;
-    for (const auto& token : tokens) {
-        term_counts[token]++;
-    }
+    uint32_t total_words = 0;
+    InvertedIndex::count_tokens(content, term_counts, total_words);
+    if (total_words == 0) return;
 
     std::string filename = file_path.filename().string();
-    uint32_t doc_id = index_.register_document(filename, file_path.string(), 
-                                               static_cast<uint32_t>(tokens.size()), content);
+    uint32_t doc_id = index_.register_document(filename, file_path.string(), total_words, content);
     index_.add_document_terms(doc_id, term_counts);
 }
 

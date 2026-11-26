@@ -131,7 +131,9 @@ int main(int argc, char** argv) {
     uint64_t time_ms = j.value("time_ms", 0);
 
     if (j.contains("expanded_terms") && !j["expanded_terms"].empty()) {
-        std::cout << "\033[1;35m[LLM Expansion] Extended query terms:\033[0m ";
+        std::cout << "\033[1;35m"
+                  << (mode == "llm" ? "[LLM Expansion] Extended query terms: " : "[Query Terms] ")
+                  << "\033[0m";
         const auto& terms = j["expanded_terms"];
         for (size_t k = 0; k < terms.size(); ++k) {
             std::cout << terms[k].get<std::string>() << (k + 1 < terms.size() ? ", " : "\n");
