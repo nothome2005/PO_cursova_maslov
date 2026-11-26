@@ -31,5 +31,6 @@ models/ollama/*
 
 # Temporary files
 *.log
+~$*.docx
 benchmark_results.json
 
