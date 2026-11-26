@@ -30,10 +30,8 @@ docker compose up --build
 Після запуску:
 - **Web UI:** відкрийте у браузері [http://localhost:8088](http://localhost:8088)
 - **REST & WebSocket API:** доступні на `http://localhost:8088`
-- **Ollama LLM:** доступна на `http://localhost:11434` (модель завантажується автоматично в `./models/ollama`)
-
-- **GPU-прискорення:** конфігурація `docker-compose.yml` містить резервацію NVIDIA GPU (`driver: nvidia, capabilities: [gpu]`).
-- **Локальність:** всі моделі та дані зберігаються всередині однієї папки проекту (`./models/ollama` та `./data/documents`).
+- **Ollama LLM:** доступна на `http://localhost:11434` (модель `llama3.2:1b` завантажується автоматично в `./models/ollama`).
+- **Портативність та локальність:** контейнер Ollama працює як на CPU, так і на GPU без жорстких вимог до NVIDIA Container Toolkit; усі моделі та дані зберігаються всередині папки проекту (`./models/ollama` та `./data/documents`).
 
 ---
 

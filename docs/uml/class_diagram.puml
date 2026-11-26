@@ -4,15 +4,15 @@ skinparam classAttributeIconSize 0
 package "search" {
     class ThreadPool {
         - threads_: std::vector<std::thread>
-        - tasks_: std::queue<std::function<void()>>
+        {field} - tasks_: std::queue<std::function<void()>>
         - queue_mutex_: std::mutex
-        - condition_: std::condition_variable
-        - wait_condition_: std::condition_variable
+        - cv_tasks_: std::condition_variable
+        - cv_done_: std::condition_variable
         - stop_: std::atomic<bool>
         - active_tasks_: std::atomic<size_t>
         + ThreadPool(threads: size_t)
         + ~ThreadPool()
-        + enqueue(f: F, ...args: Args): std::future<ReturnType>
+        + enqueue(task: std::function<void()>): void
         + wait_all(): void
         + get_thread_count(): size_t
         + get_queue_size(): size_t
@@ -41,7 +41,6 @@ package "search" {
         - shards_: std::vector<IndexShard>
         - docs_mutex_: std::shared_mutex
         - documents_: std::vector<DocumentInfo>
-        - doc_full_texts_: std::unordered_map<uint32_t, std::string>
         - total_words_all_docs_: std::atomic<uint64_t>
         + InvertedIndex()
         + clear(): void
@@ -51,13 +50,14 @@ package "search" {
         + get_document_count(): size_t
         + get_avg_doc_length(): double
         + {static} tokenize(text): std::vector<std::string>
-        + generate_snippet(doc_id, query_terms): std::string
+        + {static} count_tokens(text, term_counts, total_words): void
     }
 
     class OllamaClient {
         - host_: std::string
         - port_: int
         - model_: std::string
+        - request_mutex_: std::mutex
         + OllamaClient(host, port, model)
         + is_healthy(): bool
         + expand_query(query): QueryExpansionResult
@@ -73,10 +73,12 @@ package "search" {
         - last_indexed_docs_: std::atomic<size_t>
         - last_build_time_ms_: std::atomic<uint64_t>
         - last_threads_used_: std::atomic<size_t>
+        - index_build_mutex_: std::mutex
         + SearchEngine(data_dir, ollama_host, ollama_port, ollama_model)
         + build_index(threads): IndexStats
         + search_keyword(query, limit): SearchResponse
         + search_with_expansion(query, limit): SearchResponse
+        + search_terms(original_query, terms, limit): SearchResponse
         + get_stats(): IndexStats
         + is_ollama_healthy(): bool
         - process_file(file_path): void

@@ -6,14 +6,26 @@ participant "OllamaClient (LLM)" as Ollama
 participant "InvertedIndex (BM25)" as Index
 database "Ollama Service (:11434)" as OllamaDaemon
 
-== 1. Пошуковий пайплайн через WebSocket (/ws/search) ==
+== 1. Пошук за ключовими словами (UC1: POST /api/search, mode=keyword) ==
+
+Client -> Server: POST /api/search {"query": "parallel computing", "mode": "keyword"}
+activate Server
+Server -> Index: search(["parallel", "computing"], limit=20)
+activate Index
+Index -> Index: shared_lock по шардах та розрахунок BM25
+Index --> Server: std::vector<SearchResult>
+deactivate Index
+Server --> Client: 200 OK {"results": [...], "time_ms": 12}
+deactivate Server
+
+== 2. Розширений пошук та WebSocket-стрімінг (UC2, UC3: /ws/search) ==
 
 Client -> Server: WS Connect & Send: {"query": "space telescope"}
 activate Server
 
 Server -> Ollama: expand_query("space telescope")
 activate Ollama
-Ollama -> OllamaDaemon: POST /api/generate (prompt for synonyms)
+Ollama -> OllamaDaemon: POST /api/generate (mutex queue)
 activate OllamaDaemon
 OllamaDaemon --> Ollama: {"response": "{\"keywords\": [\"astronomy\", \"hubble\", \"galaxy\"]}"}
 deactivate OllamaDaemon
@@ -32,14 +44,33 @@ Server -> Client: WS Message 2: {"stage": "keyword_search", "data": {"results": 
 Server -> Client: WS Message 3: {"stage": "done"}
 deactivate Server
 
-== 2. Паралельна побудова індексу (/api/index) ==
+== 3. Паралельна побудова індексу (UC4: POST /api/index) ==
 
 Client -> Server: POST /api/index {"threads": 8}
 activate Server
-Server -> Server: ThreadPool(8)
+Server -> Server: lock(index_build_mutex_) -> ThreadPool(8)
 loop Для кожного пакета текстових файлів
-    Server -> Index: register_document() & add_document_terms()
+    Server -> Index: count_tokens(), register_document(), add_document_terms()
 end
-Server --> Client: {"status": "ok", "documents_indexed": 2000, "time_ms": 710}
+Server --> Client: {"status": "ok", "documents_indexed": 10410, "time_ms": 710}
 deactivate Server
+
+== 4. Моніторинг стану та статистики (UC5, UC6) ==
+
+Client -> Server: GET /api/health
+activate Server
+Server -> OllamaDaemon: GET /api/tags
+OllamaDaemon --> Server: 200 OK
+Server --> Client: {"status": "ok", "ollama": true}
+deactivate Server
+
+Client -> Server: GET /api/stats
+Server --> Client: {"documents": 10410, "index_build_time_ms": 710, "threads_used": 8}
+
+== 5. Дослідження масштабованості (UC7: benchmark.py) ==
+
+Client -> Server: Цикл POST /api/index {"threads": p} (p = 1..16)
+Server --> Client: Час побудови T(p)
+Client -> Server: Паралельні POST /api/search від N клієнтів (N = 1..50)
+Server --> Client: Пропускна здатність Throughput (req/s)
 @enduml
