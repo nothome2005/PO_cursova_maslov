@@ -26,6 +26,8 @@ uint32_t InvertedIndex::register_document(const std::string& filename, const std
     uint32_t id = static_cast<uint32_t>(documents_.size());
 
     std::string preview = full_text.substr(0, 200);
+    std::replace(preview.begin(), preview.end(), '\n', ' ');
+    std::replace(preview.begin(), preview.end(), '\r', ' ');
     if (full_text.length() > 200) {
         preview += "...";
     }
@@ -39,13 +41,20 @@ uint32_t InvertedIndex::register_document(const std::string& filename, const std
 
 void InvertedIndex::add_document_terms(uint32_t doc_id, 
                                       const std::unordered_map<std::string, uint32_t>& term_counts) {
+    // Групуємо терміни за шардами, щоб захоплювати м'ютекс кожного шарду 1 раз на документ
+    std::vector<std::vector<std::pair<std::string, uint32_t>>> shard_batches(NUM_SHARDS);
     for (const auto& [term, count] : term_counts) {
         if (term.empty()) continue;
-        size_t shard_idx = get_shard_index(term);
-        auto& shard = shards_[shard_idx];
+        shard_batches[get_shard_index(term)].emplace_back(term, count);
+    }
 
+    for (size_t shard_idx = 0; shard_idx < NUM_SHARDS; ++shard_idx) {
+        if (shard_batches[shard_idx].empty()) continue;
+        auto& shard = shards_[shard_idx];
         std::unique_lock<std::shared_mutex> lock(shard.mutex);
-        shard.table[term].push_back(Posting{doc_id, count});
+        for (const auto& [term, count] : shard_batches[shard_idx]) {
+            shard.table[term].push_back(Posting{doc_id, count});
+        }
     }
 }
 
@@ -63,6 +72,9 @@ std::vector<SearchResult> InvertedIndex::search(const std::vector<std::string>& 
 
     // doc_id -> сумарний BM25 score
     std::unordered_map<uint32_t, double> doc_scores;
+
+    // Захоплюємо shared_lock на метадані документів один раз на весь пошук
+    std::shared_lock<std::shared_mutex> docs_lock(docs_mutex_);
 
     for (const auto& raw_term : query_terms) {
         std::string term = raw_term;
@@ -92,13 +104,7 @@ std::vector<SearchResult> InvertedIndex::search(const std::vector<std::string>& 
             uint32_t doc_id = posting.doc_id;
             uint32_t tf = posting.term_frequency;
             
-            uint32_t doc_len = 0;
-            {
-                std::shared_lock<std::shared_mutex> lock(docs_mutex_);
-                if (doc_id < documents_.size()) {
-                    doc_len = documents_[doc_id].total_words;
-                }
-            }
+            uint32_t doc_len = (doc_id < documents_.size()) ? documents_[doc_id].total_words : 0;
             if (doc_len == 0) doc_len = static_cast<uint32_t>(avgdl);
 
             double numerator = static_cast<double>(tf) * (k1 + 1.0);
@@ -132,11 +138,10 @@ std::vector<SearchResult> InvertedIndex::search(const std::vector<std::string>& 
 
     for (const auto& [doc_id, raw_score] : sorted_results) {
         std::string filename;
-        {
-            std::shared_lock<std::shared_mutex> lock(docs_mutex_);
-            if (doc_id < documents_.size()) {
-                filename = documents_[doc_id].filename;
-            }
+        std::string snippet;
+        if (doc_id < documents_.size()) {
+            filename = documents_[doc_id].filename;
+            snippet = documents_[doc_id].snippet;
         }
         if (filename.empty()) {
             filename = "doc_" + std::to_string(doc_id);
@@ -144,8 +149,6 @@ std::vector<SearchResult> InvertedIndex::search(const std::vector<std::string>& 
 
         double normalized_score = std::round((raw_score / max_score) * 100.0) / 100.0;
         if (normalized_score <= 0.0) normalized_score = 0.01;
-
-        std::string snippet = generate_snippet(doc_id, query_terms);
 
         results.push_back(SearchResult{
             filename,
