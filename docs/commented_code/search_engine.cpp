@@ -87,8 +87,8 @@ void SearchEngine::process_file(const std::filesystem::path& file_path) {
     file.seekg(0);
     file.read(&content[0], file_size);
 
-    // Прямий підрахунок частот слів у локальну мапу потоку (без гонки даних!)
-    std::unordered_map<std::string, uint32_t> term_counts;
+    // Прямий підрахунок частот слів у власну хеш-таблицю StringHashMap (без гонки даних і STL unordered_map!)
+    StringHashMap<uint32_t> term_counts(512);
     uint32_t total_words = 0;
     InvertedIndex::count_tokens(content, term_counts, total_words);
     if (total_words == 0) return;

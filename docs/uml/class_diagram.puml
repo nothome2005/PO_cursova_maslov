@@ -37,6 +37,18 @@ package "search" {
         + snippet: std::string
     }
 
+    class "StringHashMap<V>" as StringHashMap {
+        - buckets_: std::vector<std::vector<Entry>>
+        - size_: size_t
+        + StringHashMap(initial_buckets: size_t)
+        + {static} fnv1a_hash(key: std::string): uint64_t
+        + find(key: std::string): V*
+        + get_or_insert(key: std::string): V&
+        + clear(): void
+        + size(): size_t
+        - rehash(new_bucket_count: size_t): void
+    }
+
     class InvertedIndex {
         - shards_: std::vector<IndexShard>
         - docs_mutex_: std::shared_mutex
@@ -87,6 +99,7 @@ package "search" {
 
 InvertedIndex *-- Posting
 InvertedIndex *-- DocumentInfo
+InvertedIndex *-- StringHashMap : uses in shards
 InvertedIndex ..> SearchResult : produces
 SearchEngine *-- InvertedIndex
 SearchEngine *-- OllamaClient
