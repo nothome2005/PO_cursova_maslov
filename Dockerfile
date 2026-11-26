@@ -34,7 +34,7 @@ ENV DATA_DIR=/app/data/documents
 ENV OLLAMA_HOST=ollama
 ENV OLLAMA_PORT=11434
 ENV OLLAMA_MODEL=llama3.2:1b
-ENV PORT=8080
+ENV PORT=8088
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
@@ -54,6 +54,6 @@ COPY public/ /app/public/
 # Створюємо директорії для текстового датасету
 RUN mkdir -p /app/data/documents
 
-EXPOSE 8080
+EXPOSE 8088
 
 CMD ["/app/search_server"]

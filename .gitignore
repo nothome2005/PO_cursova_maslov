@@ -19,6 +19,7 @@ Thumbs.db
 
 # Dataset & Model files
 data/documents/D1.7GB/
+data/documents/gutenberg/
 data/documents/test_*.txt
 data/documents/*.zip
 !data/documents/.gitkeep
