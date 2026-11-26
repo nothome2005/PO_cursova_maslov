@@ -33,4 +33,5 @@ models/ollama/*
 *.log
 ~$*.docx
 benchmark_results.json
+docs/*.md
 
